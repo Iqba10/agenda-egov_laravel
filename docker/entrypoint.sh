@@ -44,5 +44,13 @@ echo "==================================================="
 echo "  Application ready! Starting services..."
 echo "==================================================="
 
+# Set default PORT if not provided
+export PORT=${PORT:-8080}
+echo "Listening on port: $PORT"
+
+# Replace ${PORT} in nginx config using envsubst
+envsubst '${PORT}' < /etc/nginx/nginx.conf > /etc/nginx/nginx.conf.tmp
+mv /etc/nginx/nginx.conf.tmp /etc/nginx/nginx.conf
+
 # Start supervisord (manages nginx + php-fpm + scheduler)
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

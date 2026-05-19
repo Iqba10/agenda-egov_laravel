@@ -20,7 +20,8 @@ RUN apk add --no-cache \
     supervisor \
     nodejs \
     npm \
-    mysql-client
+    mysql-client \
+    gettext
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
