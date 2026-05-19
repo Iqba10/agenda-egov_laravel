@@ -1,12 +1,8 @@
-# Dockerfile untuk Railway Deployment
-# Laravel 12 + PHP 8.2 + Node.js
-# Railway runs as root superuser
+# Simple Laravel Dockerfile for Railway
+FROM php:8.2-cli-alpine
 
-FROM php:8.2-fpm-alpine AS base
-
-# Install system dependencies
+# Install dependencies
 RUN apk add --no-cache \
-    git \
     curl \
     libpng-dev \
     libjpeg-turbo-dev \
@@ -16,12 +12,8 @@ RUN apk add --no-cache \
     unzip \
     oniguruma-dev \
     icu-dev \
-    nginx \
-    supervisor \
     nodejs \
-    npm \
-    mysql-client \
-    gettext
+    npm
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -39,73 +31,30 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /app
 
-# ============================================
-# Build stage - Install dependencies & build
-# ============================================
-FROM base AS build
-
-WORKDIR /app
-
-# Copy composer files first for better caching
+# Copy composer files
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 
-# Copy application code
+# Copy app files
 COPY . .
 
-# Generate optimized autoloader
+# Build
 RUN composer dump-autoload --optimize --no-dev
+RUN npm ci && npm run build && rm -rf node_modules
 
-# Install npm dependencies (including devDependencies for vite build)
-RUN npm ci
-
-# Build frontend assets
-RUN npm run build
-
-# Remove node_modules after build (not needed at runtime)
-RUN rm -rf node_modules
-
-# ============================================
-# Production stage
-# ============================================
-FROM base AS production
-
-WORKDIR /app
-
-# Copy built application from build stage
-COPY --from=build /app /app
-
-# Create necessary directories
-RUN mkdir -p \
-    /app/storage/logs \
-    /app/storage/framework/cache/data \
-    /app/storage/framework/sessions \
-    /app/storage/framework/views \
-    /app/bootstrap/cache \
-    /var/log/supervisor \
-    /run/nginx
-
-# Set permissions (running as root, so 777 is fine)
-RUN chmod -R 777 /app/storage /app/bootstrap/cache
-
-# Copy configurations
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/php.ini /usr/local/etc/php/conf.d/99-custom.ini
-COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
-COPY docker/entrypoint.sh /entrypoint.sh
-
-# Make entrypoint executable
-RUN chmod +x /entrypoint.sh
-
-# Railway uses PORT env variable, default to 8080
-ENV PORT=8080
+# Setup storage
+RUN mkdir -p storage/logs storage/framework/{cache/data,sessions,views} bootstrap/cache \
+    && chmod -R 777 storage bootstrap/cache
 
 # Expose port
-EXPOSE ${PORT}
+EXPOSE 8080
 
-# Run entrypoint
-CMD ["/entrypoint.sh"]
+# Start command
+CMD php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache && \
+    php artisan migrate --force || true && \
+    php artisan storage:link --force || true && \
+    php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
