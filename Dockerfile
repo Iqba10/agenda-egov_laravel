@@ -91,7 +91,7 @@ RUN mkdir -p \
 RUN chmod -R 777 /app/storage /app/bootstrap/cache
 
 # Copy configurations
-COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/99-custom.ini
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
