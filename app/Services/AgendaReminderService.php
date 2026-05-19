@@ -1,0 +1,229 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Agenda;
+use App\Models\AgendaReminder;
+use App\Models\FcmToken;
+use App\Models\NotifikasiPendaftar;
+use Illuminate\Support\Collection;
+
+class AgendaReminderService
+{
+    public function __construct(
+        private FonnteSender $fonnte,
+        private FcmSender $fcm
+    ) {}
+
+    /**
+     * Kirim notifikasi ke subscriber berdasarkan channel preference
+     */
+    public function sendToSubscriber(NotifikasiPendaftar $subscriber, string $type = 'immediate'): bool
+    {
+        $agenda = $subscriber->agenda;
+        $success = false;
+
+        // Kirim via WhatsApp jika diperlukan
+        if (in_array($subscriber->channel_preference, ['whatsapp', 'both']) && !$subscriber->whatsapp_sent) {
+            if ($subscriber->phone_number && $this->fonnte->sendAgendaReminder($subscriber->phone_number, $agenda, $type)) {
+                $subscriber->markWhatsappSent();
+                $success = true;
+            }
+        }
+
+        // Kirim via FCM jika diperlukan
+        if (in_array($subscriber->channel_preference, ['fcm', 'both']) && !$subscriber->fcm_sent) {
+            // Cari FCM token yang subscribe ke agenda ini
+            $fcmTokens = FcmToken::active()
+                ->whereJsonContains('subscribed_agendas', $agenda->id)
+                ->pluck('token')
+                ->toArray();
+
+            foreach ($fcmTokens as $token) {
+                if ($this->fcm->sendAgendaReminder($token, $agenda, $type)) {
+                    $success = true;
+                }
+            }
+
+            if ($success) {
+                $subscriber->markFcmSent();
+            }
+        }
+
+        return $success;
+    }
+
+    /**
+     * Kirim notifikasi ke AgendaReminder (admin/internal)
+     */
+    public function sendToReminder(AgendaReminder $reminder): bool
+    {
+        if ($reminder->is_sent) {
+            return true;
+        }
+
+        $agenda = $reminder->agenda;
+        $success = false;
+
+        if ($reminder->channel === 'whatsapp') {
+            $success = $this->fonnte->sendAgendaReminder($reminder->phone_number, $agenda);
+        } elseif ($reminder->channel === 'fcm') {
+            // Untuk FCM channel, cari token yang terkait
+            $tokens = FcmToken::active()
+                ->whereJsonContains('subscribed_agendas', $agenda->id)
+                ->pluck('token')
+                ->toArray();
+
+            foreach ($tokens as $token) {
+                if ($this->fcm->sendAgendaReminder($token, $agenda)) {
+                    $success = true;
+                    break;
+                }
+            }
+        }
+
+        if ($success) {
+            $reminder->markAsSent();
+        }
+
+        return $success;
+    }
+
+    /**
+     * Kirim notifikasi bulk ke multiple agenda untuk satu nomor/subscriber
+     */
+    public function sendBulkToPhone(string $phone, Collection $agendas, string $channel = 'whatsapp', string $type = 'immediate'): bool
+    {
+        if ($channel === 'whatsapp' || $channel === 'both') {
+            return $this->fonnte->sendBulkAgendaReminder($phone, $agendas->all(), $type);
+        }
+
+        return false;
+    }
+
+    /**
+     * Subscribe user ke agenda dengan channel preference
+     */
+    public function subscribe(array $data): NotifikasiPendaftar
+    {
+        $fcmTokenId = null;
+        if (!empty($data['fcm_token'])) {
+            $fcmToken = $this->registerFcmToken($data['fcm_token']);
+            $fcmTokenId = $fcmToken->id;
+        }
+
+        return NotifikasiPendaftar::updateOrCreate(
+            [
+                'agenda_id'    => $data['agenda_id'],
+                'phone_number' => $data['phone_number'] ?? null,
+            ],
+            [
+                'nama'               => $data['nama'] ?? null,
+                'fcm_token_id'       => $fcmTokenId,
+                'channel_preference' => $data['channel'] ?? 'whatsapp',
+            ]
+        );
+    }
+
+    /**
+     * Register/update FCM token
+     */
+    public function registerFcmToken(string $token, ?string $deviceName = null): FcmToken
+    {
+        return FcmToken::updateOrCreate(
+            ['token' => $token],
+            [
+                'device_name' => $deviceName ?? 'Web Browser',
+                'is_active'   => true,
+            ]
+        );
+    }
+
+    /**
+     * Subscribe FCM token ke agenda tertentu
+     */
+    public function subscribeFcmToAgenda(string $token, int $agendaId): bool
+    {
+        $fcmToken = FcmToken::findByToken($token);
+
+        if (!$fcmToken) {
+            $fcmToken = $this->registerFcmToken($token);
+        }
+
+        $fcmToken->subscribeToAgenda($agendaId);
+        return true;
+    }
+
+    /**
+     * Subscribe ke multiple agenda sekaligus
+     */
+    public function subscribeToMultipleAgendas(array $data): array
+    {
+        $results = [];
+        $agendaIds = $data['agenda_ids'] ?? [];
+        $channel = $data['channel'] ?? 'whatsapp';
+
+        foreach ($agendaIds as $agendaId) {
+            // Untuk WhatsApp/both, simpan ke notifikasi_pendaftar
+            if (in_array($channel, ['whatsapp', 'both']) && !empty($data['phone_number'])) {
+                $subscriber = $this->subscribe([
+                    'agenda_id'    => $agendaId,
+                    'phone_number' => $data['phone_number'],
+                    'nama'         => $data['nama'] ?? null,
+                    'channel'      => $channel,
+                ]);
+                $results[] = $subscriber;
+            }
+
+            // Untuk FCM/both, subscribe token ke agenda
+            if (in_array($channel, ['fcm', 'both']) && !empty($data['fcm_token'])) {
+                $this->subscribeFcmToAgenda($data['fcm_token'], $agendaId);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Kirim immediate confirmation setelah subscribe
+     */
+    public function sendImmediateConfirmation(array $data): bool
+    {
+        $agendaIds = $data['agenda_ids'] ?? [];
+        $channel = $data['channel'] ?? 'whatsapp';
+        $agendas = Agenda::whereIn('id', $agendaIds)->get();
+
+        if ($agendas->isEmpty()) {
+            return false;
+        }
+
+        $success = false;
+
+        // Kirim WhatsApp jika ada nomor
+        if (in_array($channel, ['whatsapp', 'both']) && !empty($data['phone_number'])) {
+            $success = $this->fonnte->sendBulkAgendaReminder($data['phone_number'], $agendas->all(), 'immediate');
+        }
+
+        // Kirim FCM jika ada token
+        if (in_array($channel, ['fcm', 'both']) && !empty($data['fcm_token'])) {
+            foreach ($agendas as $agenda) {
+                if ($this->fcm->sendAgendaReminder($data['fcm_token'], $agenda, 'immediate')) {
+                    $success = true;
+                }
+            }
+        }
+
+        return $success;
+    }
+
+    /**
+     * Check if services are properly configured
+     */
+    public function getServiceStatus(): array
+    {
+        return [
+            'whatsapp' => $this->fonnte->isConfigured(),
+            'fcm'      => $this->fcm->isConfigured(),
+        ];
+    }
+}
