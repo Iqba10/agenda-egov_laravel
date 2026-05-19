@@ -52,15 +52,14 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 
-# Copy package.json for npm
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
-
 # Copy application code
 COPY . .
 
 # Generate optimized autoloader
 RUN composer dump-autoload --optimize --no-dev
+
+# Install npm dependencies (including devDependencies for vite build)
+RUN npm ci
 
 # Build frontend assets
 RUN npm run build
