@@ -1,196 +1,173 @@
 # Agenda eGov — Diskominfo Kabupaten Sambas
 
-Aplikasi agenda kegiatan pemerintahan berbasis **Laravel 12**, **Blade**, dan **Tailwind CSS** untuk Dinas Komunikasi dan Informatika Kabupaten Sambas.
+![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?logo=laravel)
+![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?logo=php)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v3-06B6D4?logo=tailwindcss)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-Aplikasi PHP native lama tersimpan di `native_old/` sebagai arsip referensi.
+Aplikasi manajemen agenda kegiatan pemerintahan berbasis **Laravel 12**, **Blade**, dan **Tailwind CSS** untuk Dinas Komunikasi dan Informatika Kabupaten Sambas.
 
+  
 ---
 
 ## Fitur Utama
 
 ### Public Site
-- Daftar agenda publik di `/` dengan filter status, live-search debounce, dan stat cards berwarna.
-- Detail agenda di `/agenda/{slug}` — layout 2-kolom desktop-aware.
-- Embed dokumen (PDF iframe, image preview) via blob URL, anti-IDM.
-- Footer Diskominfo Sambas dengan informasi kontak resmi.
-- Widget cuaca real-time (suhu, kondisi, kelembapan, kecepatan angin) dari BMKG/Open-Meteo.
-- Jam digital live.
+- Daftar agenda publik dengan filter status, live-search debounce, dan statistik cards
+- Detail agenda dengan layout 2-kolom responsive
+- Embed dokumen (PDF iframe, image preview) via blob URL — anti-IDM
+- Widget cuaca real-time (suhu, kondisi, kelembapan, angin) dari Open-Meteo
+- Jam digital live
+- Footer Diskominfo Sambas dengan kontak resmi
 
 ### Sistem Notifikasi Multi-Channel
-- **WhatsApp** (via Fonnte API) — notifikasi langsung ke nomor HP.
-- **Push Notification** (via Firebase Cloud Messaging) — notifikasi browser.
-- **Gabungan** — kirim ke kedua channel sekaligus.
-- Pengingat dikirim 3x: saat subscribe, 24 jam sebelum, dan 6 jam sebelum agenda.
-- Modal subscribe modern dengan pilihan channel dan validasi real-time.
-- Scheduler otomatis via `php artisan agenda:send-reminders`.
-
-### Autentikasi
-- Login, Register, Forgot Password dengan UI split-panel responsif.
-- Remember device toggle.
-- Password visibility toggle.
-- Pesan error inline di bawah field password.
-- Reset password via email (Laravel Breeze).
-
-### Role-Based Access Control
-
-| Role | Akses |
-|------|-------|
-| `user` | Profil, public site |
-| `admin` | Semua + CRUD agenda, kelola dokumen, manajemen user |
-
-Role disimpan di kolom `users.role`. Middleware: `App\Http\Middleware\EnsureUserRole` (alias `role`).
-
-### Agenda
-- CRUD lengkap oleh admin.
-- Field: jenis, perihal, waktu mulai/selesai, tempat, asal surat, tanggal surat, pakaian, disposisi, petugas, status, keterangan.
-- Status tersimpan: `terjadwal`, `selesai`, `dibatalkan`.
-- Status efektif dihitung otomatis dari waktu:
-  - Sebelum waktu mulai → `terjadwal`
-  - Antara mulai dan selesai → `berlangsung` *(computed, tidak disimpan)*
-  - Setelah waktu selesai → `selesai`
-  - Jika manual `dibatalkan` → tetap `dibatalkan`
-- Routing agenda via `slug` (auto-generate dari perihal + tanggal).
-- Badge status berwarna di tabel dan detail.
-
-### Dokumen Agenda
-- Upload multi-file: PDF, JPG, JPEG, PNG, DOCX, XLSX (maks. 5 MB/file).
-- File disimpan di `storage/app/public/agendas/documents/`.
-- Akses file via `DocumentController` (bypass APP_URL port mismatch).
-- Embed inline: PDF → `<iframe>` via Blob URL; Gambar → `<img>` via Blob URL.
-- Download via fetch → Blob → `<a download>` (anti-IDM, tidak ada request HTTP langsung).
-- Hapus dokumen via AJAX dengan modal konfirmasi custom (tanpa nested form).
+- **WhatsApp** via Fonnte API — notifikasi langsung ke nomor HP
+- **Push Notification** via Firebase Cloud Messaging (FCM) — notifikasi browser
+- **Gabungan** — kirim ke kedua channel sekaligus
+- Pengingat otomatis: saat subscribe, 24 jam sebelum, dan 6 jam sebelum agenda
+- Modal subscribe modern dengan validasi real-time
+- Scheduler: `php artisan agenda:send-reminders`
 
 ### Admin Panel
-- Dashboard `/admin` — list agenda + stat cards + live search + filter status.
-- CRUD agenda di `/admin/agendas/*`.
-- Manajemen user di `/admin/users`.
-- Sidebar dengan grup menu (Menu Utama / Menu Lainnya) dan card profil user di bawah.
-- Hamburger sidebar mobile-friendly.
-- Print agenda via halaman cetak khusus `/admin/agendas/print`.
+- Dashboard dengan statistik dan filter agenda
+- CRUD lengkap agenda + upload dokumen (PDF, gambar, Office)
+- Manajemen user dengan role assignment
+- Halaman cetak laporan agenda
+- **Test Notifikasi** — panel untuk testing WhatsApp dan FCM
 
-### UI/UX
-- Font: **Figtree** (admin layout) / **Outfit** (public layout) — Google Fonts.
-- Icons: **Lucide** (CDN, `lucide.createIcons()`).
-- Tailwind CSS v3 via Vite build — tidak ada runtime CDN.
-- Toast notification dengan animasi.
-- Modal konfirmasi custom (hapus agenda, hapus dokumen).
-- Status badge pill berwarna sesuai status.
-- Responsive untuk mobile (hamburger sidebar, filter bar wrap).
+### Autentikasi & RBAC
+- Login, Register, Forgot Password dengan UI split-panel responsive
+- Role-Based Access Control: `admin` dan `user`
+- Middleware: `role:admin` untuk proteksi area admin
+
+### Dokumen Agenda
+- Upload multi-file: PDF, JPG, JPEG, PNG, DOCX, XLSX (max 5 MB/file)
+- Akses via route Laravel (bypass APP_URL mismatch)
+- Download anti-IDM via fetch → blob
 
 ---
 
-## Stack Teknis
+## Tech Stack
 
 | Layer | Teknologi |
 |-------|-----------|
-| Backend | PHP `^8.2`, Laravel `12.x` |
-| Database | MySQL / MariaDB |
+| Backend | PHP 8.2+, Laravel 12.x |
+| Database | MySQL 8.0+ / MariaDB 10.4+ |
 | Frontend | Blade, Tailwind CSS v3, Vite |
-| Auth | Laravel Breeze foundation |
-| Icons | Lucide (unpkg CDN) |
-| Font | Google Fonts (Figtree, Outfit) |
-| Dev tool | `manage.bat` (Windows) |
+| Auth | Laravel Breeze |
+| Icons | Lucide (CDN) |
+| Fonts | Google Fonts (Figtree, Outfit) |
+| Notifications | Fonnte (WhatsApp), Firebase Cloud Messaging |
+| Deployment | Docker, Railway |
 
 ---
 
-## Struktur Folder Penting
+## Quick Start
 
-```
-app/
-  Console/Commands/
-    SendAgendaReminders.php        Artisan command kirim notifikasi
-  Http/Controllers/
-    Admin/AgendaController.php     CRUD agenda + dokumen admin
-    Admin/UserController.php       Manajemen user
-    Api/WeatherController.php      Weather API proxy
-    Auth/                          Breeze auth controllers
-    DocumentController.php         Serve/download dokumen via route
-    NotificationController.php     Subscribe notifikasi + FCM token
-    ProfileController.php          Profile edit/delete
-    PublicAgendaController.php     Public agenda list + detail
-  Http/Middleware/
-    EnsureUserRole.php             RBAC middleware
-  Http/Requests/
-    StoreAgendaRequest.php
-    UpdateAgendaRequest.php
-  Models/
-    Agenda.php                     Slug, effective_status, badge class
-    AgendaDocument.php             url, download_url, type, extension attributes
-    AgendaReminder.php             Antrian pengingat multi-channel
-    FcmToken.php                   FCM device tokens
-    NotifikasiPendaftar.php        Pendaftar notifikasi
-    User.php
-  Services/
-    AgendaReminderService.php      Orchestrator notifikasi multi-channel
-    FcmSender.php                  Firebase Cloud Messaging sender
-    FonnteSender.php               WhatsApp sender via Fonnte API
+### Prerequisites
 
-database/
-  migrations/
-    0001_01_01_000000_create_users_table.php
-    2026_05_08_100000_create_agenda_table.php
-    2026_05_08_100241_add_slug_to_agendas_table.php
-    2026_05_08_122620_create_dokumen_agenda_table.php
-  seeders/
-    DatabaseSeeder.php
-    UserSeeder.php
-    AgendaSeeder.php
+- PHP 8.2+
+- Composer 2.x
+- Node.js 18+ & npm
+- MySQL 8.0+ / MariaDB 10.4+
 
-docs/
-  DEPLOYMENT.md
-  API_ROUTING_FEATURES.md
-
-native_old/
-  Arsip aplikasi PHP native lama
-
-public/
-  firebase-messaging-sw.js   Service worker untuk FCM background
-
-resources/
-  css/app.css        Tailwind + komponen kustom (dashboard-*, badge-*, btn-*)
-  js/app.js          Sidebar toggle, toast, data-confirm modal, Lucide init
-  js/firebase-init.js   Client-side FCM initialization
-  views/
-    agenda/           Public agenda (index, show)
-    admin/agendas/    Admin CRUD (index, show, create, edit, _form, print)
-    admin/            Dashboard admin, user management
-    auth/             Login, register, forgot-password, reset-password
-    layouts/          app.blade.php, guest.blade.php
-    partials/         sidebar, toast, public-footer
-    profile/          Edit profil
-
-routes/
-  web.php            Semua route web
-  auth.php           Route auth Breeze
-
-manage.bat           Dev utility (Windows): migrate fresh, reseed, clear cache
-```
-
----
-
-## Setup Lokal
-
-### 1. Install dependency PHP
+### Installation
 
 ```bash
+# 1. Clone repository
+git clone https://github.com/Iqba10/agenda-egov_laravel.git
+cd agenda-egov_laravel
+
+# 2. Install dependencies
 composer install
-```
-
-### 2. Install dependency frontend
-
-```bash
 npm install
+
+# 3. Setup environment
+cp .env.example .env
+php artisan key:generate
+
+# 4. Configure .env
+# Edit DB_DATABASE, DB_USERNAME, DB_PASSWORD sesuai environment
+
+# 5. Database
+php artisan migrate --force
+php artisan db:seed --force
+php artisan storage:link
+
+# 6. Build frontend
+npm run build
+
+# 7. Run server
+php artisan serve
 ```
 
-### 3. Buat `.env`
+Buka: `http://127.0.0.1:8000`
+
+### Default Accounts
+
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@agenda-egov.local` | `password` | admin |
+| `user@agenda-egov.local` | `password` | user |
+
+> **Penting**: Ganti password default sebelum production!
+
+---
+
+## Development
+
+### One-Command Setup
 
 ```bash
-cp .env.example .env
+composer run setup
 ```
 
-Sesuaikan konfigurasi database:
+### Development Server (Hot Reload)
+
+```bash
+composer run dev
+```
+
+Menjalankan `php artisan serve` + `npm run dev` secara bersamaan.
+
+### Build Frontend
+
+```bash
+npm run build
+```
+
+### Testing
+
+```bash
+# Run all tests
+composer test
+
+# Single test
+php artisan test --filter=AgendaEgovFlowTest
+```
+
+### Windows Dev Utility
+
+```
+manage.bat
+  [1] Fresh migrate + clear cache
+  [2] Fresh migrate + full reseed
+  [3] Clear all caches
+```
+
+---
+
+## Configuration
+
+### Environment Variables
 
 ```env
+# App
+APP_NAME="Agenda eGov Sambas"
+APP_URL=http://127.0.0.1:8000
+APP_DEBUG=false
+
+# Database
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -198,101 +175,174 @@ DB_DATABASE=agenda_egov
 DB_USERNAME=root
 DB_PASSWORD=
 
+# Admin Seeder
 ADMIN_NAME="Administrator"
 ADMIN_EMAIL=admin@agenda-egov.local
 ADMIN_PASSWORD=password
 
-# Notifikasi (opsional)
+# WhatsApp (Fonnte)
 FONNTE_TOKEN=your-fonnte-api-token
+FONNTE_DEVICE=               # Optional, untuk multi-device
+
+# Firebase Cloud Messaging
 FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_CREDENTIALS_PATH=storage/app/firebase-credentials.json
+
+# Firebase Client (Frontend)
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_VAPID_KEY=
 ```
 
-### 4. Generate app key
+### Notification Setup
+
+#### WhatsApp (Fonnte)
+1. Daftar di [fonnte.com](https://fonnte.com)
+2. Dapatkan API token
+3. Set `FONNTE_TOKEN` di `.env`
+
+#### Firebase Cloud Messaging
+1. Buat project di [Firebase Console](https://console.firebase.google.com)
+2. Enable Cloud Messaging
+3. Download service account JSON → simpan di `storage/app/firebase-credentials.json`
+4. Set `FIREBASE_PROJECT_ID` dan `FIREBASE_CREDENTIALS_PATH`
+5. Untuk frontend push: isi semua `VITE_FIREBASE_*` variables
+
+### Scheduler (Production)
+
+Tambahkan cron job:
 
 ```bash
-php artisan key:generate
-```
-
-### 5. Migrasi database dan seed
-
-```bash
-php artisan migrate --force
-php artisan db:seed --force
-```
-
-Seeder membuat dua akun default:
-
-```
-admin@agenda-egov.local  / password  (role: admin)
-user@agenda-egov.local   / password  (role: user)
-```
-
-**Ganti password sebelum production.**
-
-### 6. Link storage publik
-
-```bash
-php artisan storage:link
-```
-
-### 7. Build asset
-
-```bash
-npm run build
-```
-
-### 8. Jalankan server lokal
-
-```bash
-php artisan serve
-```
-
-Buka: `http://127.0.0.1:8000`
-
-### 9. Jalankan scheduler (untuk notifikasi)
-
-```bash
-# Development (jalankan manual)
-php artisan agenda:send-reminders
-
-# Production (cron job)
 * * * * * cd /path-to-project && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-### Atau gunakan manage.bat (Windows)
-
-```
-manage.bat
-> [1] Clear DB & Cache (Fresh Migrate)
-> [2] Reset DB + Full Reseed
-> [3] Clear All Caches Only
-```
-
 ---
 
-## Command Verifikasi
+## Deployment
+
+### Railway (Recommended)
+
+1. Push ke GitHub
+2. Connect repository di [Railway Dashboard](https://railway.app)
+3. Set environment variables
+4. Railway auto-deploy dari `Dockerfile`
+
+Environment variables untuk Railway:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-app.up.railway.app
+
+DB_CONNECTION=mysql
+DB_HOST=<railway-mysql-host>
+DB_PORT=3306
+DB_DATABASE=<db-name>
+DB_USERNAME=<db-user>
+DB_PASSWORD=<db-pass>
+
+FONNTE_TOKEN=<your-token>
+FIREBASE_PROJECT_ID=<your-project>
+```
+
+### Docker
 
 ```bash
-php artisan route:list --no-ansi
-php artisan view:cache --no-ansi
-npm run build
+# Build
+docker build -t agenda-egov .
+
+# Run
+docker run -p 8080:80 \
+  -e APP_KEY=base64:... \
+  -e DB_HOST=host.docker.internal \
+  agenda-egov
+```
+
+### Manual Deployment
+
+Lihat [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) untuk panduan lengkap.
+
+---
+
+## Project Structure
+
+```
+app/
+  Console/Commands/
+    SendAgendaReminders.php        # Artisan command notifikasi
+  Http/Controllers/
+    Admin/
+      AgendaController.php         # CRUD agenda + dokumen
+      NotificationTestController.php # Test WA & FCM
+      UserController.php           # Manajemen user
+    Api/WeatherController.php      # Weather proxy
+    DocumentController.php         # Serve/download dokumen
+    NotificationController.php     # Subscribe notifikasi
+    PublicAgendaController.php     # Public agenda pages
+  Models/
+    Agenda.php                     # Accessor: effective_status, slug
+    AgendaDocument.php             # Accessor: url, download_url, type
+    AgendaReminder.php             # Antrian pengingat
+    FcmToken.php                   # FCM device tokens
+    NotifikasiPendaftar.php        # Pendaftar notifikasi
+  Services/
+    AgendaReminderService.php      # Orchestrator multi-channel
+    FcmSender.php                  # Firebase sender
+    FonnteSender.php               # WhatsApp sender
+
+database/migrations/
+  2026_05_08_100000_create_agenda_table.php
+  2026_05_08_100241_add_slug_to_agendas_table.php
+  2026_05_08_122620_create_dokumen_agenda_table.php
+  2026_05_20_000001_refactor_notifications_multichannel.php
+
+docker/
+  entrypoint.sh                    # Container startup
+  nginx.conf                       # Nginx config
+  php.ini                          # PHP production settings
+  supervisord.conf                 # Process manager
+  www.conf                         # PHP-FPM config
+
+docs/
+  DEPLOYMENT.md                    # Deployment guide
+  API_ROUTING_FEATURES.md          # Routes & features detail
+
+public/
+  firebase-messaging-sw.js         # FCM service worker
+
+resources/
+  css/app.css                      # Tailwind + custom components
+  js/app.js                        # Sidebar, toast, modal, Lucide
+  js/firebase-init.js              # FCM client initialization
+  views/
+    admin/                         # Admin views
+    agenda/                        # Public agenda views
+    auth/                          # Auth views
+    layouts/                       # app.blade.php, guest.blade.php
+    partials/                      # sidebar, toast, footer
 ```
 
 ---
 
-## Dokumentasi Lanjutan
+## Documentation
 
-- Deployment: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
-- Routes, API, fitur, DB schema: [`docs/API_ROUTING_FEATURES.md`](docs/API_ROUTING_FEATURES.md)
-- Changelog: [`CHANGELOG.md`](CHANGELOG.md)
-- Changelog native lama: [`native_old/CHANGELOG.md`](native_old/CHANGELOG.md)
+- [AGENTS.md](AGENTS.md) — Repository guidelines untuk AI/developer
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Panduan deployment lengkap
+- [docs/API_ROUTING_FEATURES.md](docs/API_ROUTING_FEATURES.md) — Routes, features, database schema
 
 ---
 
-## Catatan Penting
+## License
 
-- Aplikasi lama berada di `native_old/` — hanya arsip, tidak aktif.
-- Root project adalah Laravel 12; tidak ada backward compatibility ke entrypoint PHP native lama.
-- File dokumen diakses via route `/documents/{id}` bukan `public/storage` langsung — ini mengatasi masalah APP_URL port mismatch di lokal dan pemblokiran IDM.
-- `manage.bat` hanya untuk Windows dev environment.
+props
+---
+
+## Credits
+
+Dikembangkan untuk **Dinas Komunikasi dan Informatika Kabupaten Sambas**.
+
+Built with Laravel, Tailwind CSS, Fonnte, and Firebase.

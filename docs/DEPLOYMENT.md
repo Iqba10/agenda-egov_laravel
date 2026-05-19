@@ -1,6 +1,19 @@
 # Deployment Guide — Agenda eGov
 
-Dokumen ini menjelaskan cara deploy Agenda eGov (Laravel 12) ke server production atau staging.
+Dokumen ini menjelaskan cara deploy Agenda eGov (Laravel 12) ke berbagai environment.
+
+---
+
+## Table of Contents
+
+1. [Server Requirements](#1-server-requirements)
+2. [Environment Configuration](#2-environment-configuration)
+3. [Manual Deployment](#3-manual-deployment)
+4. [Railway Deployment](#4-railway-deployment)
+5. [Docker Deployment](#5-docker-deployment)
+6. [Notification Setup](#6-notification-setup)
+7. [Production Checklist](#7-production-checklist)
+8. [Troubleshooting](#8-troubleshooting)
 
 ---
 
@@ -8,13 +21,13 @@ Dokumen ini menjelaskan cara deploy Agenda eGov (Laravel 12) ke server productio
 
 | Requirement | Minimum |
 |-------------|---------|
-| PHP | 8.2 atau lebih baru |
+| PHP | 8.2+ |
 | Composer | 2.x |
-| Database | MySQL 8.0+ atau MariaDB 10.4+ |
-| Node.js + npm | Diperlukan untuk build asset (atau build di CI lalu kirim `public/build`) |
-| Web server | Nginx atau Apache |
+| Node.js | 18+ (untuk build frontend) |
+| Database | MySQL 8.0+ / MariaDB 10.4+ |
+| Web Server | Nginx atau Apache |
 
-PHP extensions yang wajib ada:
+### PHP Extensions Required
 
 ```
 pdo_mysql
@@ -26,42 +39,33 @@ ctype
 json
 fileinfo
 curl
+gd (untuk image processing)
 ```
 
 ---
 
-## 2. Document Root
+## 2. Environment Configuration
 
-Web server harus diarahkan ke folder **`public/`**, bukan root project:
-
-```
-/var/www/agenda-egov/public
-```
-
-Jangan expose root project ke internet — `.env`, source code, dan storage tidak boleh public.
-
----
-
-## 3. Environment Configuration
-
-Salin `.env.example`:
+### Copy dan Edit .env
 
 ```bash
 cp .env.example .env
 ```
 
-Konfigurasi penting:
+### Production Settings
 
 ```env
+# App
 APP_NAME="Agenda eGov - Diskominfo Sambas"
 APP_ENV=production
-APP_KEY=
+APP_KEY=                    # Generate dengan php artisan key:generate
 APP_DEBUG=false
 APP_URL=https://domain-anda.example
 
 APP_LOCALE=id
 APP_FALLBACK_LOCALE=id
 
+# Database
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -69,135 +73,74 @@ DB_DATABASE=agenda_egov
 DB_USERNAME=agenda_user
 DB_PASSWORD=strong-password
 
+# Cache & Session
 SESSION_DRIVER=file
 CACHE_STORE=file
 QUEUE_CONNECTION=sync
 FILESYSTEM_DISK=public
 
+# Admin Seeder
 ADMIN_NAME="Administrator Agenda eGov"
 ADMIN_EMAIL=admin@agenda-egov.local
 ADMIN_PASSWORD=ganti-password-ini
+
+# WhatsApp (Fonnte) - Optional
+FONNTE_TOKEN=your-fonnte-api-token
+FONNTE_DEVICE=
+
+# Firebase Cloud Messaging - Optional
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CREDENTIALS_PATH=storage/app/firebase-credentials.json
 ```
 
-Generate app key:
+### Generate App Key
 
 ```bash
 php artisan key:generate --force
 ```
 
-> **Penting**: `APP_URL` harus sesuai domain production termasuk scheme (`https://`). Dokumen agenda diakses via route Laravel (`/documents/{id}`), bukan symlink storage langsung — sehingga `APP_URL` port mismatch di lokal tidak mempengaruhi production.
+> **Penting**: `APP_URL` harus sesuai domain production termasuk scheme (`https://`).
 
 ---
 
-## 4. Install PHP Dependencies
+## 3. Manual Deployment
+
+### Step 1: Install PHP Dependencies
 
 ```bash
 composer install --no-dev --optimize-autoloader
 ```
 
----
-
-## 5. Build Frontend Assets
-
-Build di server atau CI lalu deploy hasilnya:
+### Step 2: Build Frontend
 
 ```bash
 npm ci
 npm run build
 ```
 
-Pastikan folder ini tersedia setelah build:
+Pastikan folder `public/build/` tersedia setelah build.
 
-```
-public/build/
-```
-
-Jika build dilakukan di lokal/CI, ikutkan folder `public/build/` dalam deployment artifact.
-
----
-
-## 6. Storage dan Cache Permissions
-
-Pastikan web server bisa menulis ke:
-
-```
-storage/
-bootstrap/cache/
-```
-
-Linux (sesuaikan user/group dengan konfigurasi server):
+### Step 3: Setup Permissions
 
 ```bash
 chown -R www-data:www-data storage bootstrap/cache
 chmod -R ug+rw storage bootstrap/cache
 ```
 
----
-
-## 7. Migrasi Database
-
-Jalankan migrasi:
+### Step 4: Database Migration
 
 ```bash
 php artisan migrate --force
-```
-
-Urutan migration yang akan dijalankan:
-
-1. `create_users_table` — users, password_reset_tokens, sessions
-2. `create_cache_table` — cache, cache_locks
-3. `create_jobs_table` — jobs, job_batches, failed_jobs
-4. `create_agenda_table` — tabel agenda utama
-5. `add_slug_to_agendas_table` — slug, tanggal_surat, keterangan, created_by
-6. `create_dokumen_agenda_table` — tabel dokumen agenda
-
----
-
-## 8. Seed Database
-
-Seed admin dan data demo:
-
-```bash
 php artisan db:seed --force
 ```
 
-Seeder yang dijalankan:
-- **UserSeeder** — membuat akun admin dan user default:
-
-```
-admin@agenda-egov.local / password   (role: admin)
-user@agenda-egov.local  / password   (role: user)
-```
-
-- **AgendaSeeder** — membuat contoh data agenda
-
-> **Wajib**: Ganti password akun admin segera setelah login pertama kali di production.
-
----
-
-## 9. Storage Link
-
-Wajib untuk akses file dokumen publik:
+### Step 5: Storage Link
 
 ```bash
 php artisan storage:link
 ```
 
-Validasi:
-
-```bash
-ls -la public/storage
-```
-
-Target harus mengarah ke `storage/app/public`.
-
-> **Catatan**: File dokumen di production dapat diakses tanpa symlink karena menggunakan route Laravel `/documents/{id}`. Namun `storage:link` tetap diperlukan jika ada file lain yang menggunakan `Storage::url()`.
-
----
-
-## 10. Optimasi Laravel
-
-Setelah semua konfigurasi siap:
+### Step 6: Optimize Laravel
 
 ```bash
 php artisan config:cache
@@ -205,17 +148,17 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-Untuk clear cache saat troubleshooting:
+### Step 7: Setup Scheduler (Cron)
+
+Tambahkan ke crontab:
 
 ```bash
-php artisan optimize:clear
+* * * * * cd /var/www/agenda-egov && php artisan schedule:run >> /dev/null 2>&1
 ```
 
----
+### Web Server Configuration
 
-## 11. Web Server Configuration
-
-### Nginx
+#### Nginx
 
 ```nginx
 server {
@@ -251,96 +194,310 @@ server {
 }
 ```
 
-Untuk HTTPS, tambahkan SSL certificate (Let's Encrypt / Certbot direkomendasikan).
+#### Apache
 
-### Apache
-
-- Arahkan `DocumentRoot` ke `public/`.
-- Aktifkan `mod_rewrite`.
-- File `public/.htaccess` Laravel harus tersedia.
+- Arahkan `DocumentRoot` ke `public/`
+- Aktifkan `mod_rewrite`
+- File `public/.htaccess` Laravel harus tersedia
 
 ---
 
-## 12. Health Check
+## 4. Railway Deployment
 
-Laravel menyediakan route health bawaan:
+Railway adalah platform cloud yang mendukung auto-deploy dari Docker.
+
+### Files yang Diperlukan
 
 ```
-GET /up
+Dockerfile              # Multi-stage build
+railway.json            # Railway config
+docker/
+  entrypoint.sh         # Container startup script
+  nginx.conf            # Nginx config
+  php.ini               # PHP settings
+  supervisord.conf      # Process manager
+  www.conf              # PHP-FPM config
+.dockerignore           # Exclude dari build
 ```
 
-Gunakan untuk load balancer atau monitoring.
+### Deploy Steps
 
----
+1. **Push ke GitHub**
+   ```bash
+   git push origin main
+   ```
 
-## 13. Smoke Test Setelah Deploy
+2. **Connect di Railway Dashboard**
+   - Buka [railway.app](https://railway.app)
+   - New Project → Deploy from GitHub repo
+   - Pilih repository `agenda-egov_laravel`
 
-Jalankan dari server:
+3. **Add MySQL Database**
+   - New → Database → MySQL
+   - Copy connection variables
+
+4. **Set Environment Variables**
+
+   ```env
+   APP_NAME=Agenda eGov
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_KEY=base64:...     # Generate locally, paste here
+   APP_URL=https://your-app.up.railway.app
+
+   DB_CONNECTION=mysql
+   DB_HOST=${{MySQL.MYSQLHOST}}
+   DB_PORT=${{MySQL.MYSQLPORT}}
+   DB_DATABASE=${{MySQL.MYSQLDATABASE}}
+   DB_USERNAME=${{MySQL.MYSQLUSER}}
+   DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+
+   ADMIN_NAME=Administrator
+   ADMIN_EMAIL=admin@agenda-egov.local
+   ADMIN_PASSWORD=secure-password
+
+   FONNTE_TOKEN=your-fonnte-token
+   FIREBASE_PROJECT_ID=your-firebase-project
+   ```
+
+5. **Deploy**
+   - Railway akan auto-build dari Dockerfile
+   - Health check: `GET /up`
+
+### Generate APP_KEY Locally
 
 ```bash
-php artisan migrate:status
-php artisan route:list --no-ansi
-php artisan view:cache --no-ansi
-```
-
-Cek via browser:
-
-1. `/` — daftar agenda publik tampil.
-2. `/login` — form login split-panel bisa dibuka.
-3. Login dengan `admin@agenda-egov.local` berhasil.
-4. `/admin` — dashboard admin tampil dengan daftar agenda.
-5. Tambah agenda baru berhasil.
-6. Upload dokumen berhasil.
-7. `/documents/{id}` — dokumen bisa dibuka inline (PDF/gambar).
-8. `/documents/{id}/download` — dokumen bisa didownload.
-9. `/admin/agendas/print` — halaman cetak tampil.
-10. Widget cuaca di header publik tampil.
-
----
-
-## 14. Dev Utility (Lokal Windows)
-
-Untuk lingkungan lokal Windows, gunakan `manage.bat`:
-
-```
-manage.bat
-[1] Clear DB & Cache (Fresh Migrate)
-[2] Reset DB + Full Reseed
-[3] Clear All Caches Only
-[4] Exit
+php -r "echo 'base64:' . base64_encode(random_bytes(32)) . PHP_EOL;"
 ```
 
 ---
 
-## 15. Production Checklist
+## 5. Docker Deployment
 
-- [ ] `.env` production lengkap dan benar.
-- [ ] `APP_DEBUG=false`.
-- [ ] `APP_KEY` sudah digenerate.
-- [ ] `APP_URL` sesuai domain production.
-- [ ] Database production tersedia dan dapat diakses.
-- [ ] `composer install --no-dev --optimize-autoloader` berhasil.
-- [ ] `npm run build` berhasil atau `public/build/` sudah tersedia.
-- [ ] `php artisan migrate --force` berhasil.
-- [ ] `php artisan db:seed --force` berhasil.
-- [ ] `php artisan storage:link` berhasil.
-- [ ] `php artisan config:cache route:cache view:cache` berhasil.
-- [ ] Permissions `storage/` dan `bootstrap/cache/` benar.
-- [ ] Password admin default sudah diganti.
-- [ ] Upload dokumen diuji.
-- [ ] View dan download dokumen diuji.
-- [ ] Halaman cetak laporan diuji.
-- [ ] Widget cuaca berfungsi (opsional — tergantung akses internet server).
+### Build Image
+
+```bash
+docker build -t agenda-egov:latest .
+```
+
+### Run Container
+
+```bash
+docker run -d \
+  --name agenda-egov \
+  -p 8080:80 \
+  -e APP_KEY=base64:... \
+  -e APP_URL=http://localhost:8080 \
+  -e DB_HOST=host.docker.internal \
+  -e DB_DATABASE=agenda_egov \
+  -e DB_USERNAME=root \
+  -e DB_PASSWORD=secret \
+  agenda-egov:latest
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      - APP_KEY=base64:...
+      - APP_URL=http://localhost:8080
+      - DB_HOST=db
+      - DB_DATABASE=agenda_egov
+      - DB_USERNAME=root
+      - DB_PASSWORD=secret
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: agenda_egov
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
+```
 
 ---
 
-## 16. Rollback
+## 6. Notification Setup
+
+### WhatsApp (Fonnte)
+
+1. Daftar di [fonnte.com](https://fonnte.com)
+2. Dapatkan API token dari dashboard
+3. Set environment variable:
+   ```env
+   FONNTE_TOKEN=your-api-token
+   FONNTE_DEVICE=            # Optional, untuk multi-device
+   ```
+4. Test di `/admin/notifications/test`
+
+### Firebase Cloud Messaging
+
+1. Buat project di [Firebase Console](https://console.firebase.google.com)
+2. Enable Cloud Messaging
+3. **Service Account** (Server-side):
+   - Project Settings → Service Accounts → Generate new private key
+   - Download JSON file
+   - Upload ke server: `storage/app/firebase-credentials.json`
+   - Set environment:
+     ```env
+     FIREBASE_PROJECT_ID=your-project-id
+     FIREBASE_CREDENTIALS_PATH=storage/app/firebase-credentials.json
+     ```
+
+4. **Web Push** (Client-side):
+   - Project Settings → General → Your apps → Add web app
+   - Copy config values ke environment:
+     ```env
+     VITE_FIREBASE_API_KEY=...
+     VITE_FIREBASE_AUTH_DOMAIN=...
+     VITE_FIREBASE_PROJECT_ID=...
+     VITE_FIREBASE_STORAGE_BUCKET=...
+     VITE_FIREBASE_MESSAGING_SENDER_ID=...
+     VITE_FIREBASE_APP_ID=...
+     VITE_FIREBASE_VAPID_KEY=...
+     ```
+   - Rebuild frontend: `npm run build`
+
+5. Test di `/admin/notifications/test`
+
+---
+
+## 7. Production Checklist
+
+### Pre-Deployment
+
+- [ ] `.env` production lengkap dan benar
+- [ ] `APP_DEBUG=false`
+- [ ] `APP_KEY` sudah digenerate
+- [ ] `APP_URL` sesuai domain production
+- [ ] Database production tersedia dan dapat diakses
+- [ ] Password admin default sudah diganti di `.env`
+
+### Deployment
+
+- [ ] `composer install --no-dev --optimize-autoloader` berhasil
+- [ ] `npm run build` berhasil atau `public/build/` tersedia
+- [ ] `php artisan migrate --force` berhasil
+- [ ] `php artisan db:seed --force` berhasil
+- [ ] `php artisan storage:link` berhasil
+- [ ] `php artisan config:cache route:cache view:cache` berhasil
+- [ ] Permissions `storage/` dan `bootstrap/cache/` benar
+
+### Post-Deployment
+
+- [ ] Health check `/up` returns 200
+- [ ] Login admin berhasil
+- [ ] Upload dokumen diuji
+- [ ] View dan download dokumen diuji
+- [ ] Halaman cetak laporan diuji
+- [ ] Widget cuaca berfungsi (opsional)
+- [ ] Notifikasi WhatsApp diuji (jika dikonfigurasi)
+- [ ] Push notification diuji (jika dikonfigurasi)
+- [ ] Cron scheduler berjalan
+
+### Security
+
+- [ ] HTTPS enabled
+- [ ] Password admin sudah diganti
+- [ ] `.env` tidak accessible dari web
+- [ ] `storage/` tidak accessible dari web (kecuali via route)
+
+---
+
+## 8. Troubleshooting
+
+### 500 Internal Server Error
+
+```bash
+# Check logs
+tail -f storage/logs/laravel.log
+
+# Clear caches
+php artisan optimize:clear
+php artisan config:clear
+```
+
+### Permission Denied
+
+```bash
+sudo chown -R www-data:www-data storage bootstrap/cache
+sudo chmod -R 775 storage bootstrap/cache
+```
+
+### Dokumen Tidak Bisa Diakses
+
+```bash
+# Pastikan storage link ada
+php artisan storage:link
+
+# Check permission
+ls -la public/storage
+
+# Harus link ke storage/app/public
+```
+
+### Database Connection Refused
+
+- Cek `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+- Pastikan MySQL service running
+- Cek firewall/security group
+
+### Vite Manifest Not Found
+
+```bash
+# Build frontend
+npm run build
+
+# Pastikan public/build/ ada
+ls -la public/build/
+```
+
+### Scheduler Tidak Berjalan
+
+```bash
+# Test manual
+php artisan schedule:run
+
+# Check crontab
+crontab -l
+
+# Add cron entry
+* * * * * cd /var/www/agenda-egov && php artisan schedule:run >> /dev/null 2>&1
+```
+
+### Notifikasi Tidak Terkirim
+
+- Cek `FONNTE_TOKEN` dan `FIREBASE_PROJECT_ID` di `.env`
+- Test di `/admin/notifications/test`
+- Cek logs: `storage/logs/laravel.log`
+
+---
+
+## Rollback
 
 Jika perlu rollback ke versi sebelumnya:
 
-1. Backup database sebelum `migrate --force`.
-2. Backup folder `storage/app/public/` sebelum deploy.
-3. Deploy artifact lama.
-4. Jalankan `php artisan optimize:clear`.
+1. Backup database sebelum `migrate --force`
+2. Backup folder `storage/app/public/` sebelum deploy
+3. Deploy artifact/commit lama
+4. Jalankan `php artisan optimize:clear`
 
-Aplikasi native PHP lama tersedia di `native_old/` sebagai arsip — namun membutuhkan konfigurasi web server dari awal jika ingin diaktifkan kembali.
+---
+
+## Support
+
+- **Documentation**: [README.md](../README.md), [AGENTS.md](../AGENTS.md)
+- **Issues**: GitHub Issues
+- **API Reference**: [API_ROUTING_FEATURES.md](API_ROUTING_FEATURES.md)

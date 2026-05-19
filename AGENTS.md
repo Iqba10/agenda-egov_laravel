@@ -2,45 +2,88 @@
 
 ## Project Overview
 
-Agenda eGov — aplikasi agenda kegiatan pemerintahan untuk Dinas Komunikasi dan Informatika Kabupaten Sambas. Dibangun dengan **Laravel 12**, **Blade**, **Tailwind CSS v3**, dan **Alpine.js**.
+**Agenda eGov** — aplikasi manajemen agenda kegiatan pemerintahan untuk Dinas Komunikasi dan Informatika Kabupaten Sambas.
 
-`native_old/` adalah arsip aplikasi PHP native lama — tidak aktif, hanya referensi.
+- **Framework**: Laravel 12, Blade, Tailwind CSS v3, Alpine.js
+- **Database**: MySQL 8.0+ / MariaDB 10.4+
+- **Notifications**: WhatsApp (Fonnte), Push (Firebase Cloud Messaging)
+- **Deployment**: Docker, Railway
+
+> `native_old/` adalah arsip aplikasi PHP native lama — tidak aktif, hanya referensi.
 
 ---
 
-## Project Structure & Module Organization
+## Project Structure
 
 ```
-app/Http/Controllers/
-    Admin/AgendaController.php      CRUD agenda + upload/hapus dokumen (admin)
-    Admin/UserController.php        Manajemen user
-    Api/WeatherController.php       Proxy BMKG/Open-Meteo untuk widget cuaca
-    DocumentController.php          Serve/download file via route (bukan public/storage)
-    PublicAgendaController.php      Halaman publik: list + detail agenda
-app/Http/Middleware/
-    EnsureUserRole.php              RBAC — alias middleware: role
-app/Models/
-    Agenda.php                      Accessor: effective_status, badge_class; auto-slug
-    AgendaDocument.php              Accessor: url, download_url, type, extension
+app/
+  Console/Commands/
+    SendAgendaReminders.php         # Artisan command kirim notifikasi
+  Http/Controllers/
+    Admin/
+      AgendaController.php          # CRUD agenda + upload/hapus dokumen
+      NotificationTestController.php # Panel test WA & FCM
+      UserController.php            # Manajemen user
+    Api/WeatherController.php       # Proxy BMKG/Open-Meteo
+    DocumentController.php          # Serve/download file via route
+    NotificationController.php      # Subscribe notifikasi + FCM token
+    PublicAgendaController.php      # Halaman publik
+  Http/Middleware/
+    EnsureUserRole.php              # RBAC — alias middleware: role
+  Models/
+    Agenda.php                      # Accessor: effective_status, badge_class; auto-slug
+    AgendaDocument.php              # Accessor: url, download_url, type, extension
+    AgendaReminder.php              # Antrian pengingat (channel: whatsapp/fcm)
+    FcmToken.php                    # FCM device tokens
+    NotifikasiPendaftar.php         # Pendaftar notifikasi publik
+  Services/
+    AgendaReminderService.php       # Orchestrator multi-channel
+    FcmSender.php                   # Firebase Cloud Messaging sender
+    FonnteSender.php                # WhatsApp sender via Fonnte API
 resources/
-    css/app.css                     Tailwind + komponen kustom (badge-*, btn-*, dashboard-*)
-    js/app.js                       Sidebar toggle, toast, modal konfirmasi, Lucide init
-    views/                          Blade templates (layouts: app.blade.php, guest.blade.php)
+  css/app.css                       # Tailwind + komponen kustom
+  js/app.js                         # Sidebar toggle, toast, modal, Lucide init
+  js/firebase-init.js               # Client-side FCM initialization
+  views/
+    admin/                          # Admin views (agendas, users, notifications)
+    agenda/                         # Public agenda (index, show)
+    auth/                           # Login, register, forgot-password
+    layouts/                        # app.blade.php, guest.blade.php
+    partials/                       # sidebar, toast, public-footer
 ```
-
-**Arsitektur penting:**
-
-- **Dokumen** diakses via `/documents/{id}` (`DocumentController`), bukan `public/storage` langsung — solusi untuk APP_URL port mismatch di lokal dan pemblokiran IDM.
-- **Status agenda** efektif dihitung dari timestamps di runtime (`effective_status` accessor). Hanya `terjadwal`, `selesai`, `dibatalkan` yang disimpan di DB; `berlangsung` adalah computed state.
-- **Role-based access**: kolom `users.role` (`admin` / `user`). Gunakan middleware `role:admin` di routes.
-- **Slug** auto-generate dari perihal + tanggal di `Agenda::boot()`.
-- Tailwind CSS dikompilasi via Vite — tidak ada CDN runtime. Lucide icons via unpkg CDN (`lucide.createIcons()`).
 
 ---
 
-## Build, Test, and Development Commands
+## Architecture Notes
 
-### Setup awal
+### Dokumen Access
+- Dokumen diakses via `/documents/{id}` (`DocumentController`), bukan `public/storage` langsung
+- Solusi untuk APP_URL port mismatch di lokal dan pemblokiran IDM
+- Download via fetch → Blob → `<a download>`
+
+### Status Agenda
+- Status tersimpan di DB: `terjadwal`, `selesai`, `dibatalkan`
+- Status `berlangsung` adalah computed state (tidak disimpan)
+- Dihitung dari timestamps di runtime via `effective_status` accessor
+
+### Role-Based Access
+- Kolom `users.role`: `admin` atau `user`
+- Middleware: `role:admin` di routes admin
+- Alias di `bootstrap/app.php`
+
+### Slug Auto-Generate
+- Slug dibuat otomatis dari perihal + tanggal di `Agenda::boot()`
+- Digunakan sebagai route key (`getRouteKeyName()`)
+
+### Frontend Build
+- Tailwind CSS dikompilasi via Vite — tidak ada CDN runtime
+- Lucide icons via unpkg CDN (`lucide.createIcons()`)
+
+---
+
+## Build & Development Commands
+
+### Quick Setup
 
 ```bash
 composer run setup
@@ -48,15 +91,15 @@ composer run setup
 
 Menjalankan: `composer install`, copy `.env`, key generate, migrate, `npm install`, `npm run build`.
 
-### Development server
+### Development Server
 
 ```bash
 composer run dev
 ```
 
-Menjalankan `php artisan serve` + `npm run dev` secara bersamaan via `concurrently`.
+Menjalankan `php artisan serve` + `npm run dev` secara bersamaan.
 
-### Build frontend
+### Build Frontend
 
 ```bash
 npm run build
@@ -65,6 +108,7 @@ npm run build
 ### Testing
 
 ```bash
+# All tests
 composer test
 # atau
 php artisan test
@@ -74,16 +118,16 @@ php artisan test --filter=AgendaEgovFlowTest
 php artisan test tests/Feature/AgendaEgovFlowTest.php
 ```
 
-Test menggunakan database **MySQL** terpisah: `agenda_egov_test` (lihat `phpunit.xml`).
+Test menggunakan database MySQL terpisah: `agenda_egov_test` (lihat `phpunit.xml`).
 
-### Verifikasi routes & cache
+### Verifikasi
 
 ```bash
 php artisan route:list --no-ansi
 php artisan optimize:clear
 ```
 
-### Windows dev utility
+### Windows Dev Utility
 
 ```
 manage.bat
@@ -94,94 +138,80 @@ manage.bat
 
 ---
 
-## Coding Style & Naming Conventions
+## Coding Style
 
-- **PHP**: 4 spasi indent, LF line endings, UTF-8, final newline (EditorConfig).
-- **PHP formatter**: [Laravel Pint](https://laravel.com/docs/pint) — `./vendor/bin/pint`
-- **PSR-4** autoloading: `App\` → `app/`, `Tests\` → `tests/`
-- **Blade**: komponen kustom di `app/View/Components/`, partials di `resources/views/partials/`.
-- Nama file migration mengikuti konvensi Laravel timestamp — jangan diubah manual.
-
----
-
-## Testing Guidelines
-
-- Framework: **PHPUnit 11.x**
-- Suite: `Unit` (`tests/Unit/`) dan `Feature` (`tests/Feature/`)
-- DB testing: buat database `agenda_egov_test` di MySQL lokal (bukan SQLite).
-- Credentials default seeder untuk testing: `admin@agenda-egov.local` / `password` dan `user@agenda-egov.local` / `password`.
+- **PHP**: 4 spasi indent, LF line endings, UTF-8, final newline (EditorConfig)
+- **Formatter**: Laravel Pint — `./vendor/bin/pint`
+- **PSR-4**: `App\` → `app/`, `Tests\` → `tests/`
+- **Blade**: komponen di `app/View/Components/`, partials di `views/partials/`
+- **Migration**: jangan rename file migration secara manual
 
 ---
 
 ## Key Environment Variables
 
-Variabel penting di `.env` (lihat `.env.example`):
-
 ```env
+# App
+APP_NAME="Agenda eGov Sambas"
+APP_URL=http://127.0.0.1:8000
+APP_DEBUG=false
+
+# Database
 DB_CONNECTION=mysql
 DB_DATABASE=agenda_egov
-ADMIN_NAME=
-ADMIN_EMAIL=
-ADMIN_PASSWORD=
-APP_URL=http://127.0.0.1:8000
+
+# Admin Seeder
+ADMIN_NAME="Administrator"
+ADMIN_EMAIL=admin@agenda-egov.local
+ADMIN_PASSWORD=password
+
+# WhatsApp (Fonnte)
+FONNTE_TOKEN=your-fonnte-api-token
+FONNTE_DEVICE=               # Optional
+
+# Firebase Cloud Messaging
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CREDENTIALS_PATH=storage/app/firebase-credentials.json
+
+# Firebase Client (Frontend)
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_VAPID_KEY=
 ```
 
-`APP_URL` harus diset dengan benar karena `DocumentController` menggunakannya untuk generate URL file.
+> `APP_URL` harus diset dengan benar — `DocumentController` menggunakannya untuk generate URL file.
 
 ---
 
-## Notification System (Multi-Channel)
+## Notification System
 
-Sistem notifikasi pengingat agenda mendukung **WhatsApp** (via Fonnte) dan **Push Notification** (via Firebase Cloud Messaging).
-
-### Arsitektur
+### Architecture
 
 ```
-app/Services/
-    FonnteSender.php              Kirim WhatsApp via Fonnte API
-    FcmSender.php                 Kirim push notification via FCM
-    AgendaReminderService.php     Orchestrator multi-channel
-app/Models/
-    NotifikasiPendaftar.php       Pendaftar notifikasi (phone/fcm_token)
-    FcmToken.php                  FCM device tokens
-    AgendaReminder.php            Antrian pengingat (channel: whatsapp/push/both)
-app/Console/Commands/
-    SendAgendaReminders.php       Artisan command untuk kirim notifikasi
-public/
-    firebase-messaging-sw.js      Service worker untuk background FCM
-resources/js/
-    firebase-init.js              Client-side FCM initialization
+Services/
+  FonnteSender.php              # Kirim WhatsApp via Fonnte API
+  FcmSender.php                 # Kirim push notification via FCM
+  AgendaReminderService.php     # Orchestrator multi-channel
+
+Models/
+  NotifikasiPendaftar.php       # Pendaftar (phone/fcm_token, channel_preference)
+  FcmToken.php                  # FCM device tokens
+  AgendaReminder.php            # Antrian pengingat (channel: whatsapp/fcm)
+
+Commands/
+  SendAgendaReminders.php       # php artisan agenda:send-reminders
 ```
 
 ### Flow
 
 1. User subscribe via modal di halaman publik (pilih channel: WA/Push/Gabungan)
-2. Data disimpan ke `notifikasi_pendaftar` + `agenda_reminders` + `fcm_tokens` (jika push)
+2. Data disimpan ke `notifikasi_pendaftar` + `agenda_reminders` + `fcm_tokens`
 3. Scheduler menjalankan `php artisan agenda:send-reminders` setiap 5 menit
 4. `AgendaReminderService` dispatch ke channel yang sesuai
-
-### Konfigurasi Environment
-
-```env
-# Fonnte (WhatsApp Gateway)
-FONNTE_TOKEN=your-fonnte-api-token
-FONNTE_DEVICE=               # Optional, untuk multi-device
-
-# Firebase Cloud Messaging (Server)
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CREDENTIALS_PATH=storage/app/firebase-credentials.json
-
-# Firebase (Client - untuk frontend)
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
-VITE_FIREBASE_VAPID_KEY=your-vapid-key
-```
-
-> **Note**: Untuk FCM, download service account JSON dari Firebase Console dan simpan di `storage/app/firebase-credentials.json`
 
 ### Commands
 
@@ -189,11 +219,11 @@ VITE_FIREBASE_VAPID_KEY=your-vapid-key
 # Kirim notifikasi pending
 php artisan agenda:send-reminders
 
-# Scheduler (di cron production)
+# Scheduler (cron production)
 * * * * * cd /path-to-project && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-### Admin Panel - Test Notifikasi
+### Admin Test Panel
 
 Route: `/admin/notifications/test` (admin only)
 
@@ -205,22 +235,58 @@ Fitur:
 
 ---
 
+## Database Schema
+
+### Tables
+
+| Table | Keterangan |
+|-------|------------|
+| `users` | User accounts dengan role |
+| `agenda` | Data agenda utama |
+| `dokumen_agenda` | Dokumen/attachment agenda |
+| `agenda_reminders` | Antrian pengingat multi-channel |
+| `fcm_tokens` | FCM device tokens |
+| `notifikasi_pendaftar` | Pendaftar notifikasi publik |
+| `sessions` | Laravel sessions |
+| `cache` | Laravel cache |
+| `jobs` | Laravel queue jobs |
+
+### Key Columns
+
+**agenda**:
+- `jenis_agenda`: enum (`internal`, `eksternal`)
+- `status`: enum (`terjadwal`, `selesai`, `dibatalkan`)
+- `slug`: unique, auto-generated
+- `waktu_mulai`, `waktu_selesai`: datetime
+
+**agenda_reminders**:
+- `channel`: enum (`whatsapp`, `fcm`)
+- `is_sent`: boolean
+- `phone_number`: untuk WhatsApp
+
+**notifikasi_pendaftar**:
+- `channel_preference`: enum (`whatsapp`, `fcm`, `both`)
+- `fcm_token_id`: FK ke fcm_tokens
+
+---
+
 ## Railway Deployment
 
-### File Konfigurasi Docker
+### Docker Files
 
 ```
-Dockerfile              Multi-stage build (PHP 8.2 + Nginx + Supervisor)
+Dockerfile              # Multi-stage build (PHP 8.2 + Nginx + Supervisor)
 docker/
-    nginx.conf          Nginx config untuk Laravel
-    supervisord.conf    Process manager (PHP-FPM + Nginx + Scheduler)
-    php.ini             PHP production settings (opcache, upload limits)
-    entrypoint.sh       Container startup (migrate, cache, optimize)
-railway.json            Railway deployment config
-.dockerignore           Exclude files from Docker build
+  nginx.conf            # Nginx config untuk Laravel
+  supervisord.conf      # Process manager (PHP-FPM + Nginx + Scheduler)
+  php.ini               # PHP production settings
+  www.conf              # PHP-FPM pool config
+  entrypoint.sh         # Container startup (migrate, cache, optimize)
+railway.json            # Railway deployment config
+.dockerignore           # Exclude files from Docker build
 ```
 
-### Deploy ke Railway
+### Deploy Steps
 
 1. Push ke GitHub repository
 2. Connect repository di Railway dashboard
@@ -243,4 +309,65 @@ FONNTE_TOKEN=<your-fonnte-token>
 FIREBASE_PROJECT_ID=<your-firebase-project>
 ```
 
-4. Railway akan auto-deploy dari Dockerfile
+4. Railway auto-deploy dari Dockerfile
+
+---
+
+## Testing Guidelines
+
+- **Framework**: PHPUnit 11.x
+- **Suite**: `Unit` (`tests/Unit/`) dan `Feature` (`tests/Feature/`)
+- **DB Testing**: buat database `agenda_egov_test` di MySQL lokal
+- **Default Credentials**: `admin@agenda-egov.local` / `password`
+
+---
+
+## Common Tasks
+
+### Fresh Database Reset
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+### Clear All Caches
+
+```bash
+php artisan optimize:clear
+```
+
+### Add New Migration
+
+```bash
+php artisan make:migration add_column_to_table
+```
+
+### Format Code
+
+```bash
+./vendor/bin/pint
+```
+
+### Check Routes
+
+```bash
+php artisan route:list --no-ansi
+```
+
+---
+
+## Troubleshooting
+
+### Dokumen tidak bisa diakses
+- Pastikan `php artisan storage:link` sudah dijalankan
+- Cek permission folder `storage/app/public`
+
+### Notifikasi tidak terkirim
+- Cek `FONNTE_TOKEN` dan `FIREBASE_PROJECT_ID` di `.env`
+- Pastikan scheduler berjalan: `php artisan schedule:run`
+- Cek logs di `storage/logs/laravel.log`
+
+### FCM tidak bekerja
+- Download service account JSON dari Firebase Console
+- Simpan di `storage/app/firebase-credentials.json`
+- Set `FIREBASE_CREDENTIALS_PATH` di `.env`

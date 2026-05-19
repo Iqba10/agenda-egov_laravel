@@ -4,17 +4,29 @@ Dokumen ini menjelaskan route, controller, hak akses, fitur, dan skema data Agen
 
 ---
 
-## 1. Catatan API
+## Table of Contents
+
+1. [API Notes](#1-api-notes)
+2. [Route Summary](#2-route-summary)
+3. [Route Protection Matrix](#3-route-protection-matrix)
+4. [Feature Details](#4-feature-details)
+5. [Console Commands](#5-console-commands)
+6. [Database Schema](#6-database-schema)
+7. [Views & UI Components](#7-views--ui-components)
+8. [JavaScript Behavior](#8-javascript-behavior)
+9. [Future API Plan](#9-future-api-plan)
+
+---
+
+## 1. API Notes
 
 Versi saat ini **belum menyediakan JSON REST API publik**. Semua fitur berjalan lewat route web Blade.
 
-Satu-satunya endpoint JSON internal adalah weather proxy:
+Endpoint JSON internal:
 
-```
-GET /api/weather   → WeatherController (JSON, public)
-```
-
-Jika nanti diperlukan API JSON/mobile, lihat bagian **9. Future API Plan**.
+| Method | URI | Controller | Keterangan |
+|--------|-----|------------|------------|
+| GET | `/api/weather` | `Api\WeatherController` | Proxy cuaca Sambas (JSON) |
 
 ---
 
@@ -24,11 +36,13 @@ Jika nanti diperlukan API JSON/mobile, lihat bagian **9. Future API Plan**.
 
 | Method | URI | Name | Controller | Keterangan |
 |--------|-----|------|------------|------------|
-| GET | `/` | `agenda.index` | `PublicAgendaController@index` | Daftar agenda publik + filter + live search |
-| GET | `/agenda/{agenda}` | `agenda.show` | `PublicAgendaController@show` | Detail agenda publik + dokumen embed |
-| GET | `/documents/{document}` | `documents.show` | `DocumentController@show` | Serve file dokumen inline (anti APP_URL mismatch) |
-| GET | `/documents/{document}/download` | `documents.download` | `DocumentController@download` | Force-download file dokumen |
-| GET | `/api/weather` | `api.weather` | `Api\WeatherController` | Proxy cuaca Sambas (JSON) |
+| GET | `/` | `agenda.index` | `PublicAgendaController@index` | Daftar agenda publik |
+| GET | `/agenda/{agenda}` | `agenda.show` | `PublicAgendaController@show` | Detail agenda publik |
+| GET | `/documents/{document}` | `documents.show` | `DocumentController@show` | Serve file inline |
+| GET | `/documents/{document}/download` | `documents.download` | `DocumentController@download` | Force-download file |
+| POST | `/notifications/subscribe` | `notifications.subscribe` | `NotificationController@subscribe` | Subscribe notifikasi |
+| POST | `/notifications/fcm-token` | `notifications.fcm-token` | `NotificationController@storeFcmToken` | Store FCM token |
+| GET | `/api/weather` | `api.weather` | `Api\WeatherController` | Proxy cuaca (JSON) |
 | GET | `/up` | — | Laravel health | Health check |
 
 ### Guest/Auth Routes
@@ -40,17 +54,11 @@ Didefinisikan di `routes/auth.php`. Middleware: `guest`.
 | GET | `/login` | `login` | Form login (split-panel) |
 | POST | `/login` | — | Submit login |
 | GET | `/register` | `register` | Form register (split-panel) |
-| POST | `/register` | — | Submit register; role default `user`; redirect ke login |
-| GET | `/forgot-password` | `password.request` | Form permintaan reset password (split-panel) |
+| POST | `/register` | — | Submit register |
+| GET | `/forgot-password` | `password.request` | Form permintaan reset |
 | POST | `/forgot-password` | `password.email` | Kirim link reset |
 | GET | `/reset-password/{token}` | `password.reset` | Form password baru |
 | POST | `/reset-password` | `password.store` | Simpan password baru |
-| GET | `/confirm-password` | `password.confirm` | Konfirmasi password |
-| POST | `/confirm-password` | — | Submit konfirmasi |
-| PUT | `/password` | `password.update` | Update password |
-| GET | `/verify-email` | `verification.notice` | Prompt verifikasi email |
-| GET | `/verify-email/{id}/{hash}` | `verification.verify` | Proses verifikasi email |
-| POST | `/email/verification-notification` | `verification.send` | Kirim ulang verifikasi |
 | POST | `/logout` | `logout` | Logout |
 
 ### Authenticated User Routes
@@ -65,25 +73,29 @@ Middleware: `auth`
 
 ### Admin Routes
 
-Middleware: `auth`, `role:admin`  
-Prefix: `/admin`  
+Middleware: `auth`, `role:admin`
+Prefix: `/admin`
 Name prefix: `admin.`
 
 | Method | URI | Name | Controller | Keterangan |
 |--------|-----|------|------------|------------|
-| GET | `/admin` | `admin.dashboard` | `Admin\AgendaController@index` | Dashboard admin = daftar agenda |
-| GET | `/admin/agendas/print` | `admin.agendas.print` | `Admin\AgendaController@print` | Halaman cetak laporan agenda |
-| GET | `/admin/agendas/create` | `admin.agendas.create` | `Admin\AgendaController@create` | Form tambah agenda |
-| POST | `/admin/agendas` | `admin.agendas.store` | `Admin\AgendaController@store` | Simpan agenda baru |
-| GET | `/admin/agendas/{agenda}` | `admin.agendas.show` | `Admin\AgendaController@show` | Detail agenda admin |
-| GET | `/admin/agendas/{agenda}/edit` | `admin.agendas.edit` | `Admin\AgendaController@edit` | Form edit agenda |
+| GET | `/admin` | `admin.dashboard` | `Admin\AgendaController@index` | Dashboard admin |
+| GET | `/admin/agendas/print` | `admin.agendas.print` | `Admin\AgendaController@print` | Halaman cetak |
+| GET | `/admin/agendas/create` | `admin.agendas.create` | `Admin\AgendaController@create` | Form tambah |
+| POST | `/admin/agendas` | `admin.agendas.store` | `Admin\AgendaController@store` | Simpan agenda |
+| GET | `/admin/agendas/{agenda}` | `admin.agendas.show` | `Admin\AgendaController@show` | Detail agenda |
+| GET | `/admin/agendas/{agenda}/edit` | `admin.agendas.edit` | `Admin\AgendaController@edit` | Form edit |
 | PUT | `/admin/agendas/{agenda}` | `admin.agendas.update` | `Admin\AgendaController@update` | Update agenda |
-| DELETE | `/admin/agendas/{agenda}` | `admin.agendas.destroy` | `Admin\AgendaController@destroy` | Hapus agenda + semua dokumennya |
-| DELETE | `/admin/agendas/{agenda}/documents/{document}` | `admin.agendas.documents.destroy` | `Admin\AgendaController@destroyDocument` | Hapus satu dokumen (AJAX) |
+| DELETE | `/admin/agendas/{agenda}` | `admin.agendas.destroy` | `Admin\AgendaController@destroy` | Hapus agenda |
+| DELETE | `/admin/agendas/{agenda}/documents/{document}` | `admin.agendas.documents.destroy` | `Admin\AgendaController@destroyDocument` | Hapus dokumen |
 | GET | `/admin/users` | `admin.users.index` | `Admin\UserController@index` | Daftar user |
-| PATCH | `/admin/users/{user}/role` | `admin.users.role` | `Admin\UserController@updateRole` | Ubah role user |
+| PATCH | `/admin/users/{user}/role` | `admin.users.role` | `Admin\UserController@updateRole` | Ubah role |
+| GET | `/admin/notifications/test` | `admin.notifications.test` | `Admin\NotificationTestController@index` | Panel test notifikasi |
+| POST | `/admin/notifications/test/whatsapp` | `admin.notifications.test.whatsapp` | `Admin\NotificationTestController@testWhatsApp` | Test WA |
+| POST | `/admin/notifications/test/fcm` | `admin.notifications.test.fcm` | `Admin\NotificationTestController@testFcm` | Test FCM |
+| POST | `/admin/notifications/test/broadcast` | `admin.notifications.test.broadcast` | `Admin\NotificationTestController@testBroadcast` | Broadcast FCM |
 
-> **Catatan**: Parameter `{agenda}` di-resolve via **slug** (`Agenda::getRouteKeyName() = 'slug'`).
+> **Note**: Parameter `{agenda}` di-resolve via **slug** (`Agenda::getRouteKeyName() = 'slug'`).
 
 ---
 
@@ -91,16 +103,20 @@ Name prefix: `admin.`
 
 | Area | Guest | `user` | `admin` |
 |------|-------|--------|---------|
-| Public agenda (/) | Bisa | Bisa | Bisa |
-| Detail agenda | Bisa | Bisa | Bisa |
-| Dokumen (view/download) | Bisa | Bisa | Bisa |
-| Weather API | Bisa | Bisa | Bisa |
-| Login/register | Bisa | Redirect | Redirect |
-| Profil | Tidak | Bisa | Bisa |
-| Admin dashboard | Tidak | Tidak | Bisa |
-| Admin agenda CRUD | Tidak | Tidak | Bisa |
-| Admin print | Tidak | Tidak | Bisa |
-| Admin user management | Tidak | Tidak | Bisa |
+| Public agenda (/) | ✓ | ✓ | ✓ |
+| Detail agenda | ✓ | ✓ | ✓ |
+| Dokumen (view/download) | ✓ | ✓ | ✓ |
+| Subscribe notifikasi | ✓ | ✓ | ✓ |
+| Weather API | ✓ | ✓ | ✓ |
+| Login/register | ✓ | → | → |
+| Profil | ✗ | ✓ | ✓ |
+| Admin dashboard | ✗ | ✗ | ✓ |
+| Admin agenda CRUD | ✗ | ✗ | ✓ |
+| Admin print | ✗ | ✗ | ✓ |
+| Admin user management | ✗ | ✗ | ✓ |
+| Admin test notifikasi | ✗ | ✗ | ✓ |
+
+Legend: ✓ = Allowed, ✗ = Denied, → = Redirect to dashboard
 
 ---
 
@@ -108,140 +124,135 @@ Name prefix: `admin.`
 
 ### 4.1 Public Agenda List (`/`)
 
-Controller: `App\Http\Controllers\PublicAgendaController@index`
+**Controller**: `PublicAgendaController@index`
 
-Query parameters:
+**Query Parameters**:
 
 | Query | Contoh | Keterangan |
 |-------|--------|------------|
-| `search` | `?search=rapat` | Live debounce search (perihal, tempat, asal surat) |
-| `status` | `?status=terjadwal` | Filter status: `terjadwal`, `selesai`, `dibatalkan`, kosong = semua |
+| `search` | `?search=rapat` | Live debounce search |
+| `status` | `?status=terjadwal` | Filter status |
 
-View: `resources/views/agenda/index.blade.php`
-
-Fitur:
-- Stat cards berwarna (total, terjadwal, selesai, dibatalkan).
-- Filter status dengan button pill aktif berwarna.
-- Live search debounce 400ms.
-- Tabel dengan status badge berwarna.
-- Widget cuaca + jam digital live di header.
+**Features**:
+- Stat cards (total, terjadwal, selesai, dibatalkan)
+- Filter status dengan button pill
+- Live search debounce 400ms
+- Status badge berwarna
+- Widget cuaca + jam digital
+- Modal subscribe notifikasi
 
 ### 4.2 Public Agenda Detail (`/agenda/{slug}`)
 
-Controller: `App\Http\Controllers\PublicAgendaController@show`
+**Controller**: `PublicAgendaController@show`
 
-View: `resources/views/agenda/show.blade.php`
-
-Fitur:
-- Layout 2-kolom di desktop (konten kiri, sidebar kanan).
-- Breadcrumb.
-- Dokumen embed via Blob URL (PDF iframe, image preview).
-- Download dokumen anti-IDM via fetch → blob.
-- Agenda lainnya di sidebar.
-- Tombol "Edit Agenda" hanya muncul jika user login sebagai admin.
+**Features**:
+- Layout 2-kolom di desktop
+- Breadcrumb
+- Dokumen embed via Blob URL
+- Download anti-IDM via fetch → blob
+- Agenda lainnya di sidebar
+- Tombol subscribe notifikasi
 
 ### 4.3 Document Serving
 
-Controller: `App\Http\Controllers\DocumentController`
+**Controller**: `DocumentController`
 
 | Method | Route | Keterangan |
 |--------|-------|------------|
-| `show` | `GET /documents/{document}` | Serve inline dengan Content-Type benar |
-| `download` | `GET /documents/{document}/download` | Force-download (`Content-Disposition: attachment`) |
+| `show` | `GET /documents/{document}` | Serve inline |
+| `download` | `GET /documents/{document}/download` | Force-download |
 
-Model attributes:
-- `AgendaDocument::$url` → `route('documents.show', $this)`
-- `AgendaDocument::$download_url` → `route('documents.download', $this)`
-- `AgendaDocument::$type` → `'pdf'`, `'image'`, `'other'`
-- `AgendaDocument::$extension` → ekstensi file
-- `AgendaDocument::$exists` → cek file di storage
+**Model Attributes** (`AgendaDocument`):
+- `url` → `route('documents.show', $this)`
+- `download_url` → `route('documents.download', $this)`
+- `type` → `'pdf'`, `'image'`, `'other'`
+- `extension` → file extension
+- `exists` → cek file di storage
 
-Storage path: `storage/app/public/agendas/documents/{filename}`  
-Disk: `public`
+**Storage**: `storage/app/public/agendas/documents/{filename}`
 
-### 4.4 Autentikasi
+### 4.4 Notification Subscription
 
-Controller auth: `App\Http\Controllers\Auth\*` (Laravel Breeze foundation)
+**Controller**: `NotificationController`
 
-Register behavior:
-- Buat user dengan `role = user`.
-- Tidak auto-login; redirect ke `/login` dengan session status.
+**Endpoints**:
+- `POST /notifications/subscribe` — Subscribe dengan channel preference
+- `POST /notifications/fcm-token` — Store FCM device token
 
-Login behavior:
-- Cek `remember` checkbox untuk remember token.
-- Error ditampilkan inline di bawah field password (bukan card terpisah).
-
-### 4.5 RBAC
-
-Middleware: `App\Http\Middleware\EnsureUserRole`
-
-Alias di `bootstrap/app.php`:
-```php
-'role' => \App\Http\Middleware\EnsureUserRole::class
+**Request Body** (subscribe):
+```json
+{
+  "agenda_id": 1,
+  "nama": "John Doe",
+  "phone_number": "08123456789",
+  "fcm_token": "...",
+  "channel_preference": "both"
+}
 ```
 
-Role yang tersedia: `user`, `admin`
+**Channel Options**: `whatsapp`, `fcm`, `both`
 
-Contoh penggunaan:
-```php
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(...);
-```
+### 4.5 Admin Test Notifikasi
+
+**Controller**: `Admin\NotificationTestController`
+
+**Features**:
+- Test kirim WhatsApp ke nomor tertentu
+- Test kirim FCM ke token tertentu
+- Broadcast FCM ke topic `agenda-updates`
+- Status konfigurasi (Fonnte configured, FCM configured)
 
 ### 4.6 Agenda Management
 
-Model: `App\Models\Agenda`
+**Model**: `App\Models\Agenda`
 
-Validation Requests:
-- `App\Http\Requests\StoreAgendaRequest`
-- `App\Http\Requests\UpdateAgendaRequest` (extends StoreAgendaRequest)
+**Validation Requests**:
+- `StoreAgendaRequest`
+- `UpdateAgendaRequest`
 
-Field form:
+**Form Fields**:
 
 | Field | Required | Keterangan |
 |-------|----------|------------|
 | `jenis_agenda` | Ya | `internal` atau `eksternal` |
 | `perihal_kegiatan` | Ya | Deskripsi agenda |
 | `waktu_mulai` | Ya | datetime-local |
-| `waktu_selesai` | Ya | Setelah/sama dengan waktu mulai |
+| `waktu_selesai` | Ya | >= waktu_mulai |
 | `tempat` | Ya | Lokasi, max 255 |
-| `asal_surat` | Ya | Asal surat/instansi, max 255 |
+| `asal_surat` | Ya | Asal surat, max 255 |
 | `tanggal_surat` | Tidak | Date |
 | `pakaian` | Tidak | String, max 255 |
 | `disposisi` | Tidak | Text |
 | `petugas_ditugaskan` | Tidak | String, max 255 |
 | `status` | Ya | `terjadwal`, `selesai`, `dibatalkan` |
 | `keterangan` | Tidak | Text |
-| `documents[]` | Tidak | Array file (PDF/JPG/PNG/DOCX/XLSX, maks 5MB/file) |
+| `documents[]` | Tidak | Array file (max 5MB/file) |
 
-Computed attributes:
+**Computed Attributes**:
 
 | Attribute | Keterangan |
 |-----------|------------|
-| `effective_status` | `berlangsung` jika antara waktu mulai dan selesai; `terjadwal` jika sebelum mulai; `selesai` jika sudah lewat; `dibatalkan` jika status DB = dibatalkan |
-| `status_badge_class` | String class Tailwind lengkap untuk badge (amber/blue/emerald/rose) |
-| `slug` | Auto-generate dari perihal + tanggal, dipakai sebagai route key |
+| `effective_status` | Computed: `berlangsung` jika antara waktu mulai/selesai |
+| `status_badge_class` | Tailwind classes untuk badge |
+| `slug` | Auto-generate dari perihal + tanggal |
 
-### 4.7 Document Management
+### 4.7 Document Upload
 
-Upload via `Admin\AgendaController@store` / `@update` (multi-file `documents[]`).
+**Upload**: via `Admin\AgendaController@store` / `@update`
 
-Delete via `Admin\AgendaController@destroyDocument`:
-- AJAX `POST` dengan `_method=DELETE` di FormData.
-- Response JSON `{"success": true}` untuk request AJAX.
-- Response redirect untuk form biasa.
+**Delete**: via `Admin\AgendaController@destroyDocument` (AJAX)
 
-File naming: `YmdHis_RandomStr10.ext`
+**File Naming**: `YmdHis_RandomStr10.ext`
 
-Allowed MIME/ext: `pdf, jpg, jpeg, png, docx, xlsx`
+**Allowed Types**: `pdf, jpg, jpeg, png, docx, xlsx`
 
-Max size: **5 MB per file**
+**Max Size**: 5 MB per file
 
 ### 4.8 Weather Widget
 
-Route: `GET /api/weather`  
-Controller: `App\Http\Controllers\Api\WeatherController`
+**Route**: `GET /api/weather`
 
-Response JSON (internal):
+**Response**:
 ```json
 {
   "temp": 28,
@@ -251,48 +262,42 @@ Response JSON (internal):
 }
 ```
 
-Ditampilkan di header dashboard public via JavaScript fetch.
-
 ### 4.9 Print Laporan
 
-Route: `GET /admin/agendas/print`  
-Controller: `Admin\AgendaController@print`
+**Route**: `GET /admin/agendas/print`
 
-Query parameters sama dengan halaman index (status, search, month, year).
-
-View: `resources/views/admin/agendas/print.blade.php`
+**Query Parameters**: sama dengan halaman index (status, search, month, year)
 
 ---
 
 ## 5. Console Commands
 
-Tidak ada custom Artisan command aktif saat ini.
+### Custom Commands
 
-Standard commands yang relevan:
+| Command | Keterangan |
+|---------|------------|
+| `php artisan agenda:send-reminders` | Kirim notifikasi pending |
+
+### Standard Commands
 
 ```bash
 php artisan migrate --force
 php artisan db:seed --force
 php artisan storage:link
 php artisan route:list --no-ansi
-php artisan view:cache --no-ansi
 php artisan optimize:clear
 ```
 
-Dev utility (Windows):
+### Scheduler
 
 ```bash
-manage.bat
+# Cron (production)
+* * * * * cd /path-to-project && php artisan schedule:run >> /dev/null 2>&1
 ```
-
-Menu:
-- `[1]` Fresh migrate + optimize:clear
-- `[2]` migrate:fresh --seed (reset penuh + seed)
-- `[3]` optimize:clear saja
 
 ---
 
-## 6. Database Tables
+## 6. Database Schema
 
 ### `users`
 
@@ -300,22 +305,21 @@ Menu:
 |--------|------|------------|
 | `id` | bigint PK | |
 | `name` | string | |
+| `username` | string unique nullable | |
 | `email` | string unique | |
-| `email_verified_at` | timestamp nullable | |
+| `role` | string | `user` atau `admin` |
 | `password` | string | Hashed |
-| `role` | string | `user` atau `admin`; default `user` |
 | `remember_token` | string nullable | |
-| `created_at` | timestamp | |
-| `updated_at` | timestamp | |
+| `timestamps` | | |
 
 ### `agenda`
 
 | Column | Type | Keterangan |
 |--------|------|------------|
-| `id` | int PK auto-increment | |
+| `id` | int PK | |
 | `jenis_agenda` | enum | `internal`, `eksternal` |
 | `perihal_kegiatan` | text | |
-| `slug` | string unique nullable | Auto-generate dari perihal + tanggal |
+| `slug` | string unique nullable | Auto-generate |
 | `waktu_mulai` | datetime | |
 | `waktu_selesai` | datetime | |
 | `tempat` | string(255) | |
@@ -326,130 +330,141 @@ Menu:
 | `petugas_ditugaskan` | string(255) | |
 | `status` | enum | `terjadwal`, `selesai`, `dibatalkan` |
 | `keterangan` | text nullable | |
-| `diinput_oleh` | string(100) nullable | Nama inputter |
+| `diinput_oleh` | string(100) nullable | |
 | `created_by` | FK → users nullable | |
-| `created_at` | timestamp | |
-| `updated_at` | timestamp | |
+| `timestamps` | | |
 
-> **Catatan**: `berlangsung` **bukan** nilai DB. Status ini dihitung di PHP via `Agenda::getEffectiveStatusAttribute()` berdasarkan waktu saat ini vs `waktu_mulai`/`waktu_selesai`.
+> **Note**: `berlangsung` adalah computed state, bukan nilai DB.
 
 ### `dokumen_agenda`
 
 | Column | Type | Keterangan |
 |--------|------|------------|
 | `id` | bigint PK | |
-| `agenda_id` | int FK → agenda cascade delete | |
-| `nama_file` | string | Nama file tersimpan di storage |
-| `original_name` | string | Nama file asli dari user |
-| `created_at` | timestamp | |
-| `updated_at` | timestamp | |
+| `agenda_id` | FK → agenda | cascade delete |
+| `nama_file` | string | Nama file di storage |
+| `original_name` | string | Nama file asli |
+| `content_hash` | string nullable | Hash untuk dedupe |
+| `timestamps` | | |
 
-Storage path: `storage/app/public/agendas/documents/{nama_file}`
+### `agenda_reminders`
 
-### `password_reset_tokens`
+| Column | Type | Keterangan |
+|--------|------|------------|
+| `id` | bigint PK | |
+| `nama` | string(100) | |
+| `phone_number` | string(20) | |
+| `channel` | enum | `whatsapp`, `fcm` |
+| `is_sent` | boolean | default false |
+| `sent_at` | timestamp nullable | |
+| `agenda_id` | FK → agenda | cascade delete |
+| `timestamps` | | |
 
-Standard Laravel.
+### `fcm_tokens`
 
-### `sessions`
+| Column | Type | Keterangan |
+|--------|------|------------|
+| `id` | bigint PK | |
+| `token` | string(500) unique | FCM device token |
+| `device_name` | string(255) nullable | |
+| `subscribed_agendas` | json nullable | |
+| `is_active` | boolean | default true |
+| `timestamps` | | |
 
-Standard Laravel (session driver: database jika dikonfigurasi).
+### `notifikasi_pendaftar`
 
-### `cache`, `jobs`
-
-Standard Laravel.
+| Column | Type | Keterangan |
+|--------|------|------------|
+| `id` | bigint PK | |
+| `agenda_id` | FK → agenda | cascade delete |
+| `nama` | string(100) nullable | |
+| `phone_number` | string(20) nullable | |
+| `fcm_token_id` | FK → fcm_tokens nullable | null on delete |
+| `channel_preference` | enum | `whatsapp`, `fcm`, `both` |
+| `whatsapp_sent` | boolean | default false |
+| `whatsapp_sent_at` | timestamp nullable | |
+| `fcm_sent` | boolean | default false |
+| `fcm_sent_at` | timestamp nullable | |
+| `timestamps` | | |
 
 ---
 
-## 7. Views dan UI Components
+## 7. Views & UI Components
 
-### Layout
+### Layouts
 
 | File | Keterangan |
 |------|------------|
-| `layouts/app.blade.php` | Layout admin (Figtree font, sidebar, Lucide, docDownload JS) |
+| `layouts/app.blade.php` | Layout admin (Figtree font, sidebar) |
 | `layouts/guest.blade.php` | Layout auth (Outfit font, split-panel) |
 
 ### Partials
 
 | File | Keterangan |
 |------|------------|
-| `partials/sidebar.blade.php` | Sidebar admin dengan grup menu + card profil |
+| `partials/sidebar.blade.php` | Sidebar admin |
 | `partials/toast.blade.php` | Toast notification |
-| `partials/public-footer.blade.php` | Footer publik Diskominfo Sambas |
-
-### Views
-
-| Folder | Keterangan |
-|--------|------------|
-| `agenda/index.blade.php` | Daftar agenda publik |
-| `agenda/show.blade.php` | Detail agenda publik |
-| `admin/agendas/index.blade.php` | Dashboard admin + daftar agenda |
-| `admin/agendas/show.blade.php` | Detail agenda admin |
-| `admin/agendas/create.blade.php` | Form tambah agenda |
-| `admin/agendas/edit.blade.php` | Form edit agenda |
-| `admin/agendas/_form.blade.php` | Partial form agenda (shared create/edit) |
-| `admin/agendas/print.blade.php` | Halaman cetak laporan |
-| `admin/users/index.blade.php` | Manajemen user |
-| `auth/login.blade.php` | Login split-panel |
-| `auth/register.blade.php` | Register split-panel |
-| `auth/forgot-password.blade.php` | Forgot password split-panel |
-| `profile/edit.blade.php` | Edit profil user |
+| `partials/public-footer.blade.php` | Footer publik |
 
 ### CSS Components (`resources/css/app.css`)
 
 | Class | Keterangan |
 |-------|------------|
-| `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-danger` | Button variants |
+| `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-danger` | Buttons |
 | `.input`, `.label`, `.helper` | Form elements |
 | `.surface`, `.surface-muted` | Card containers |
-| `.table-ui` | Tabel standar |
-| `.sidebar-link`, `.sidebar-link-active` | Sidebar nav item |
-| `.dashboard-grid` | Grid 2-kolom (mobile) / 4-kolom (desktop) |
-| `.dashboard-stat-card`, `.dashboard-stat-card-{color}` | Stat card dengan warna |
-| `.dashboard-panel`, `.dashboard-panel-header`, `.dashboard-panel-title` | Panel container |
-| `.dashboard-filter`, `.dashboard-filter-active-{color}` | Filter pill button |
-| `.badge`, `.badge-{blue,amber,emerald,red,slate}` | Status badge |
-| `.animate-dashboard` | Fade-in animasi entry |
+| `.table-ui` | Table styling |
+| `.sidebar-link`, `.sidebar-link-active` | Sidebar nav |
+| `.dashboard-grid` | Stats grid |
+| `.dashboard-stat-card`, `.dashboard-stat-card-{color}` | Stat cards |
+| `.dashboard-filter`, `.dashboard-filter-active-{color}` | Filter pills |
+| `.badge`, `.badge-{blue,amber,emerald,red,slate}` | Status badges |
+| `.animate-dashboard` | Fade-in animation |
 
 ---
 
 ## 8. JavaScript Behavior
 
 ### `resources/js/app.js`
-- Sidebar open/close toggle (mobile hamburger).
-- Toast auto-close.
-- Form `data-confirm` — modal konfirmasi custom untuk hapus agenda.
-- Lucide icon initialization.
 
-### Global functions di `layouts/app.blade.php`
-- `docDownload(url, filename)` — fetch file → blob → trigger `<a download>`. Anti-IDM.
+- Sidebar open/close toggle (mobile)
+- Toast auto-close
+- Modal konfirmasi delete (data-confirm)
+- `lucide.createIcons()` initialization
+- `window.docDownload(url)` — download via fetch → blob
 
-### Inline scripts di halaman dokumen (show pages)
-- Untuk setiap dokumen PDF/image: `fetch(docUrl)` → blob → set `iframe.src` atau `img.src`. Menghindari IDM intercept dan APP_URL mismatch.
+### `resources/js/firebase-init.js`
+
+- Firebase SDK initialization
+- FCM token request
+- Foreground message handling
+
+### `public/firebase-messaging-sw.js`
+
+- Service worker untuk background FCM
 
 ---
 
 ## 9. Future API Plan
 
-Jika ingin menambahkan REST API JSON:
+Jika diperlukan API JSON/mobile di masa depan:
+
+### Potential Endpoints
 
 ```
-GET    /api/agendas
-GET    /api/agendas/{agenda}
-POST   /api/auth/login
-POST   /api/auth/logout
-GET    /api/me
+GET  /api/v1/agendas              List agenda (paginated)
+GET  /api/v1/agendas/{id}         Detail agenda
+POST /api/v1/agendas/{id}/subscribe   Subscribe notifikasi
+GET  /api/v1/weather              Proxy cuaca (existing)
 ```
 
-Untuk admin:
-```
-POST   /api/admin/agendas
-PUT    /api/admin/agendas/{agenda}
-DELETE /api/admin/agendas/{agenda}
-POST   /api/admin/agendas/{agenda}/documents
-DELETE /api/admin/agendas/{agenda}/documents/{document}
-GET    /api/admin/users
-PATCH  /api/admin/users/{user}/role
-```
+### Authentication Options
 
-Tambahkan di `routes/api.php` dengan Laravel Sanctum untuk token auth dan rate limiting.
+- Laravel Sanctum (SPA + Mobile)
+- API tokens (simple)
+
+### Implementation Notes
+
+- Buat controller terpisah di `app/Http/Controllers/Api/`
+- Gunakan API resources untuk response format
+- Rate limiting via `throttle` middleware
