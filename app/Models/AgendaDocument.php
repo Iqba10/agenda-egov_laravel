@@ -18,6 +18,9 @@ class AgendaDocument extends Model
         'nama_file',
         'original_name',
         'content_hash',
+        'content',
+        'mime_type',
+        'file_size',
     ];
 
     public function agenda(): BelongsTo

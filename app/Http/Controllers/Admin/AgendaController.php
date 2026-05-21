@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AgendaController extends Controller
@@ -130,11 +129,7 @@ class AgendaController extends Controller
 
     public function destroy(Agenda $agenda): RedirectResponse
     {
-        // Delete documents from storage
-        foreach ($agenda->documents as $doc) {
-            Storage::disk('public')->delete('agendas/documents/' . $doc->nama_file);
-        }
-
+        // Documents will be cascade deleted via foreign key
         $agenda->delete();
 
         return redirect()->route('admin.dashboard')->with('toast', [
@@ -145,7 +140,6 @@ class AgendaController extends Controller
 
     public function destroyDocument(Agenda $agenda, AgendaDocument $document): JsonResponse|RedirectResponse
     {
-        Storage::disk('public')->delete('agendas/documents/' . $document->nama_file);
         $document->delete();
 
         if (request()->wantsJson() || request()->hasHeader('X-HTTP-Method-Override')) {
@@ -163,19 +157,23 @@ class AgendaController extends Controller
         foreach ($files as $file) {
             $originalName = $file->getClientOriginalName();
             $extension    = $file->getClientOriginalExtension();
-            $contentHash  = hash_file('sha256', $file->getRealPath());
+            $content      = file_get_contents($file->getRealPath());
+            $contentHash  = hash('sha256', $content);
 
+            // Skip duplicate files
             if (AgendaDocument::query()->where('content_hash', $contentHash)->exists()) {
                 continue;
             }
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
-            $file->storeAs('agendas/documents', $fileName, 'public');
 
             $agenda->documents()->create([
                 'nama_file'     => $fileName,
                 'original_name' => $originalName,
                 'content_hash'  => $contentHash,
+                'content'       => $content,
+                'mime_type'     => $file->getMimeType(),
+                'file_size'     => $file->getSize(),
             ]);
         }
     }
