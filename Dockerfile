@@ -31,6 +31,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Apply custom PHP configuration for uploads/timeouts
+COPY docker/php.ini /usr/local/etc/php/conf.d/99-custom.ini
+
 WORKDIR /app
 
 # Copy composer files
