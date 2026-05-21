@@ -126,17 +126,22 @@ class AgendaReminderService
     }
 
     /**
-     * Register/update FCM token
+     * Register/update FCM token and subscribe to broadcast topic
      */
     public function registerFcmToken(string $token, ?string $deviceName = null): FcmToken
     {
-        return FcmToken::updateOrCreate(
+        $fcmToken = FcmToken::updateOrCreate(
             ['token' => $token],
             [
                 'device_name' => $deviceName ?? 'Web Browser',
                 'is_active'   => true,
             ]
         );
+
+        // Auto-subscribe to broadcast topic for general announcements
+        $this->fcm->subscribeToTopic($token, 'agenda-updates');
+
+        return $fcmToken;
     }
 
     /**

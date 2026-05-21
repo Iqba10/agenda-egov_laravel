@@ -297,4 +297,36 @@ class FcmSender
     {
         FcmToken::where('token', $token)->update(['is_active' => false]);
     }
+
+    /**
+     * Subscribe token to a topic for broadcast messages
+     */
+    public function subscribeToTopic(string $token, string $topic = 'agenda-updates'): bool
+    {
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            return false;
+        }
+
+        try {
+            $response = Http::withToken($accessToken)
+                ->withHeaders(['access_token_auth' => 'true'])
+                ->post("https://iid.googleapis.com/iid/v1/{$token}/rel/topics/{$topic}");
+
+            if ($response->successful()) {
+                Log::info('FCM token subscribed to topic', ['topic' => $topic]);
+                return true;
+            }
+
+            Log::warning('FCM topic subscription failed', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+            return false;
+
+        } catch (\Throwable $e) {
+            Log::error('FCM topic subscription error', ['message' => $e->getMessage()]);
+            return false;
+        }
+    }
 }
