@@ -15,7 +15,8 @@ echo "[1/7] Creating storage directories..."
 mkdir -p storage/logs
 mkdir -p storage/framework/{cache/data,sessions,views}
 mkdir -p bootstrap/cache
-chmod -R 777 storage bootstrap/cache
+mkdir -p /tmp
+chmod -R 777 storage bootstrap/cache /tmp
 
 # Generate app key if not set
 if [ -z "$APP_KEY" ]; then

@@ -26,8 +26,18 @@ class StoreAgendaRequest extends FormRequest
             'petugas_ditugaskan' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:terjadwal,selesai,dibatalkan'],
             'keterangan' => ['nullable', 'string'],
-            'documents' => ['nullable', 'array'],
-            'documents.*' => ['file', 'mimes:pdf,jpg,jpeg,png,docx,xlsx', 'max:5120'], // Max 5MB per file
+            'documents' => ['nullable', 'array', 'max:5'],
+            'documents.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,docx,xlsx', 'max:5120'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'documents.max' => 'Maksimal 5 dokumen per upload.',
+            'documents.*.file' => 'File :position gagal diupload. Coba file lain.',
+            'documents.*.mimes' => 'File :position harus berformat: PDF, JPG, PNG, DOCX, atau XLSX.',
+            'documents.*.max' => 'File :position maksimal 5MB.',
         ];
     }
 }
