@@ -204,20 +204,22 @@ class AgendaController extends Controller
                 ]);
             }
 
-            $sourcePath = $file->getRealPath() ?: $file->getPathname();
-            if (! $sourcePath || ! is_file($sourcePath)) {
-                \Log::warning('Upload source path is not readable', [
+            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
+            $storedPath = $file->storeAs('agendas/documents', $fileName, 'public');
+            if (! $storedPath) {
+                \Log::warning('Failed to store uploaded document', [
                     'name' => $originalName,
-                    'path' => $sourcePath,
+                    'file_name' => $fileName,
                 ]);
                 continue;
             }
 
-            $content = file_get_contents($sourcePath);
-            if ($content === false) {
-                \Log::warning('Failed to read uploaded file content', [
+            $disk = Storage::disk('public');
+            $content = $disk->get($storedPath);
+            if ($content === false || $content === '') {
+                \Log::warning('Failed to read stored document content', [
                     'name' => $originalName,
-                    'path' => $sourcePath,
+                    'stored_path' => $storedPath,
                 ]);
                 continue;
             }
@@ -243,11 +245,7 @@ class AgendaController extends Controller
                 }
             }
 
-            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
             $contentHash = hash('sha256', $content);
-
-            // Always keep a filesystem copy as a fallback using raw bytes.
-            Storage::disk('public')->put('agendas/documents/' . $fileName, $content);
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
@@ -256,6 +254,7 @@ class AgendaController extends Controller
                     'hash' => $contentHash,
                     'agenda_id' => $agenda->id,
                 ]);
+                $disk->delete($storedPath);
                 continue;
             }
 
