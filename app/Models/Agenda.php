@@ -72,7 +72,19 @@ class Agenda extends Model
 
     public function scopeStatus(Builder $query, ?string $status): Builder
     {
-        return $status && $status !== 'semua' ? $query->where('status', $status) : $query;
+        if (!$status || $status === 'semua') {
+            return $query;
+        }
+
+        // Filter by effective status based on timestamps
+        return $query->whereRaw("
+            CASE
+                WHEN status = 'dibatalkan' THEN 'dibatalkan'
+                WHEN NOW() < waktu_mulai THEN 'terjadwal'
+                WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                ELSE 'selesai'
+            END = ?
+        ", [$status]);
     }
 
     public function getEffectiveStatusAttribute(): string
