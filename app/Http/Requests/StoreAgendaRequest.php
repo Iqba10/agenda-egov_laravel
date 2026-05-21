@@ -27,7 +27,7 @@ class StoreAgendaRequest extends FormRequest
             'status' => ['required', 'in:terjadwal,selesai,dibatalkan'],
             'keterangan' => ['nullable', 'string'],
             'documents' => ['nullable', 'array', 'max:5'],
-            // File handling is validated in the controller so PDFs don't get blocked by MIME quirks.
+            // Allow upload first; controller will enforce byte-level validation and file integrity.
             'documents.*' => ['nullable'],
         ];
     }
@@ -37,6 +37,7 @@ class StoreAgendaRequest extends FormRequest
         return [
             'documents.max' => 'Maksimal 5 dokumen per upload.',
             'documents.*.file' => 'File :position gagal diupload. Coba file lain.',
+            'documents.*.required' => 'File :position wajib diisi.',
         ];
     }
 }

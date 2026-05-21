@@ -232,7 +232,7 @@ class AgendaController extends Controller
                     'name' => $originalName,
                     'path' => $sourcePath,
                 ]);
-                continue;
+                throw new \RuntimeException("File {$originalName} kosong atau tidak bisa dibaca.");
             }
 
             if ($extension === '' && str_starts_with($content, '%PDF-')) {
