@@ -183,12 +183,25 @@ class AgendaController extends Controller
 
         foreach ($files as $file) {
             if (!$file->isValid()) {
+                \Log::warning('Uploaded file is not valid', [
+                    'name' => $file->getClientOriginalName(),
+                    'error' => $file->getError(),
+                ]);
                 continue;
             }
 
             $originalName = $file->getClientOriginalName();
             $extension    = $file->getClientOriginalExtension();
             $fileSize     = (int) $file->getSize();
+            $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+
+            if (! in_array(strtolower($extension), $allowedExtensions, true)) {
+                \Log::warning('Unsupported document extension', [
+                    'name' => $originalName,
+                    'extension' => $extension,
+                ]);
+                continue;
+            }
             
             // Read file content safely
             $filePath = $file->getRealPath();
