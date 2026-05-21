@@ -89,12 +89,6 @@ class AgendaController extends Controller
         ]);
 
         $documents = $this->collectUploadedDocuments($request);
-        if (empty($documents)) {
-            $payloadDocuments = $this->collectPayloadDocuments($request);
-            if (! empty($payloadDocuments)) {
-                $this->uploadDocumentsFromPayload($agenda, $payloadDocuments);
-            }
-        }
         if (empty($documents) && $request->hasFile('documents')) {
             \Log::warning('documents input present but no uploaded files collected', [
                 'all_files_keys' => array_keys($request->allFiles()),
@@ -143,12 +137,6 @@ class AgendaController extends Controller
         $agenda->update($request->validated());
 
         $documents = $this->collectUploadedDocuments($request);
-        if (empty($documents)) {
-            $payloadDocuments = $this->collectPayloadDocuments($request);
-            if (! empty($payloadDocuments)) {
-                $this->uploadDocumentsFromPayload($agenda, $payloadDocuments);
-            }
-        }
         if (empty($documents) && $request->hasFile('documents')) {
             \Log::warning('documents input present but no uploaded files collected', [
                 'all_files_keys' => array_keys($request->allFiles()),
@@ -437,72 +425,6 @@ class AgendaController extends Controller
         return $normalized;
     }
 
-    /**
-     * Collect base64 payload documents from hidden textarea.
-     */
-    private function collectPayloadDocuments(Request $request): array
-    {
-        $payload = $request->input('documents_payload');
-
-        if (! is_string($payload) || $payload === '') {
-            return [];
-        }
-
-        $decoded = json_decode($payload, true);
-        if (! is_array($decoded)) {
-            return [];
-        }
-
-        return array_values(array_filter($decoded, fn ($item) => is_array($item) && isset($item['name'], $item['data'])));
-    }
-
-    /**
-     * Save documents from base64 browser payload.
-     */
-    private function uploadDocumentsFromPayload(Agenda $agenda, array $documents): void
-    {
-        foreach ($documents as $doc) {
-            $originalName = (string) $doc['name'];
-            $data = (string) $doc['data'];
-            $mime = (string) ($doc['mime'] ?? 'application/octet-stream');
-            $content = base64_decode($data, true);
-
-            if ($content === false || $content === '') {
-                \Log::warning('Invalid base64 document payload', ['name' => $originalName]);
-                continue;
-            }
-
-            $extension = pathinfo($originalName, PATHINFO_EXTENSION) ?: match ($mime) {
-                'application/pdf' => 'pdf',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                'application/msword' => 'doc',
-                'image/jpeg' => 'jpg',
-                'image/png' => 'png',
-                default => 'bin',
-            };
-
-            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
-            $storageRelativePath = 'agendas/documents/' . $fileName;
-            Storage::disk('public')->put($storageRelativePath, $content);
-
-            $contentHash = hash('sha256', $content);
-            if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
-                Storage::disk('public')->delete($storageRelativePath);
-                continue;
-            }
-
-            $attributes = [
-                'nama_file' => $fileName,
-                'original_name' => $originalName,
-                'content_hash' => $contentHash,
-                'content' => $content,
-                'mime_type' => $mime,
-                'file_size' => strlen($content),
-            ];
-
-            $agenda->documents()->create($attributes);
-        }
-    }
 
     private function filteredQuery(Request $request): Builder
     {

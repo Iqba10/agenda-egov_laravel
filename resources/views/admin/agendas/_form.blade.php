@@ -158,7 +158,6 @@
 
             <div class="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center hover:border-indigo-300 transition-colors bg-slate-50/50">
                 <input type="file" name="documents[]" id="documents" class="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx">
-                <textarea name="documents_payload" id="documents_payload" class="hidden"></textarea>
                 <label for="documents" class="cursor-pointer group">
                     <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                         <i data-lucide="upload-cloud" class="h-6 w-6"></i>
@@ -221,38 +220,15 @@
     document.getElementById('documents').addEventListener('change', function(e) {
         const fileList = document.getElementById('file-list');
         const selectedFiles = document.getElementById('selected-files');
-        const payloadEl = document.getElementById('documents_payload');
         selectedFiles.innerHTML = '';
-        payloadEl.value = '';
         
         if (this.files.length > 0) {
             fileList.classList.remove('hidden');
-            const files = Array.from(this.files);
-            const payload = [];
-            let done = 0;
-
-            files.forEach(file => {
+            Array.from(this.files).forEach(file => {
                 const div = document.createElement('div');
                 div.className = 'flex items-center gap-2 text-xs text-slate-600 bg-white border border-slate-200 rounded px-2 py-1';
                 div.innerHTML = `<i data-lucide="file" class="h-3 w-3 text-slate-400"></i> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
                 selectedFiles.appendChild(div);
-                
-                const reader = new FileReader();
-                reader.onload = function() {
-                    const result = String(reader.result || '');
-                    const base64 = result.includes(',') ? result.split(',')[1] : result;
-                    payload.push({
-                        name: file.name,
-                        mime: file.type || 'application/octet-stream',
-                        data: base64,
-                        size: file.size,
-                    });
-                    done++;
-                    if (done === files.length) {
-                        payloadEl.value = JSON.stringify(payload);
-                    }
-                };
-                reader.readAsDataURL(file);
             });
             if (window.lucide) lucide.createIcons();
         } else {
