@@ -218,27 +218,23 @@ class AgendaController extends Controller
             }
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
-            $sourcePath = $file->getPathname();
             $storageRelativePath = 'agendas/documents/' . $fileName;
             $storageFullPath = storage_path('app/public/' . $storageRelativePath);
+            $storageDir = dirname($storageFullPath);
 
-            if ($sourcePath && is_file($sourcePath) && is_readable($sourcePath)) {
-                if (! is_dir(dirname($storageFullPath))) {
-                    mkdir(dirname($storageFullPath), 0777, true);
-                }
+            if (! is_dir($storageDir)) {
+                mkdir($storageDir, 0777, true);
+            }
 
-                if (! copy($sourcePath, $storageFullPath)) {
-                    \Log::warning('Failed to copy upload to storage', [
-                        'name' => $originalName,
-                        'source' => $sourcePath,
-                        'target' => $storageFullPath,
-                    ]);
-                }
-            } else {
-                \Log::warning('Upload source path is not readable', [
+            try {
+                $file->move($storageDir, $fileName);
+            } catch (\Throwable $moveError) {
+                \Log::warning('Failed to move upload to storage', [
                     'name' => $originalName,
-                    'path' => $sourcePath,
+                    'target' => $storageFullPath,
+                    'error' => $moveError->getMessage(),
                 ]);
+                continue;
             }
 
             $content = '';
@@ -280,7 +276,7 @@ class AgendaController extends Controller
             }
 
             if ($hasSizeColumn) {
-                $attributes['file_size'] = $file->getSize() ?: null;
+                $attributes['file_size'] = is_file($storageFullPath) ? filesize($storageFullPath) : ($file->getSize() ?: null);
             }
 
             $agenda->documents()->create($attributes);
