@@ -33,9 +33,9 @@
                     <div class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 flex items-center gap-3 backdrop-blur-sm shadow-sm transition-all hover:bg-white/10">
                         <i data-lucide="cloud-sun" class="h-5 w-5 text-sky-400"></i>
                         <div id="weatherWidget">
-                            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Cuaca Sambas</div>
+                            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest" id="weatherLocation">Cuaca</div>
                             <div class="text-slate-200 font-bold" id="weatherContent">
-                                <span class="text-xs opacity-50 font-medium">Memuat...</span>
+                                <span class="text-xs opacity-50 font-medium">Memuat lokasi...</span>
                             </div>
                         </div>
                     </div>
@@ -244,33 +244,81 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        fetch("{{ route('api.weather') }}")
-            .then(res => res.json())
-            .then(data => {
-                const content = document.getElementById('weatherContent');
-                if (data.temp) {
-                    content.innerHTML = `
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-base font-extrabold text-white">${data.temp}&deg;C</span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${data.condition}</span>
-                        </div>
-                        <div class="flex items-center gap-3 mt-0.5">
-                            <span class="text-[10px] text-slate-400 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M12 22v-6M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M2 12h6M22 12h-6M4.93 19.07l4.24-4.24M14.83 9.17l4.24-4.24"/></svg>
-                                ${data.humidity}%
-                            </span>
-                            <span class="text-[10px] text-slate-400 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
-                                ${data.wind} m/s
-                            </span>
-                        </div>`;
-                } else {
-                    content.innerHTML = '<span class="text-xs text-slate-400">Gagal memuat cuaca</span>';
-                }
-            })
-            .catch(() => {
-                document.getElementById('weatherContent').innerHTML = '<span class="text-xs text-slate-400">Cuaca tidak tersedia</span>';
-            });
+        // Fetch weather based on user location
+        function fetchWeather(lat, lon, cityName) {
+            const locationEl = document.getElementById('weatherLocation');
+            const contentEl = document.getElementById('weatherContent');
+            
+            locationEl.textContent = 'Cuaca ' + cityName;
+            
+            fetch(`{{ route('api.weather') }}?lat=${lat}&lon=${lon}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.temp) {
+                        contentEl.innerHTML = `
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-base font-extrabold text-white">${data.temp}&deg;C</span>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${data.condition}</span>
+                            </div>
+                            <div class="flex items-center gap-3 mt-0.5">
+                                <span class="text-[10px] text-slate-400 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M12 22v-6M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M2 12h6M22 12h-6M4.93 19.07l4.24-4.24M14.83 9.17l4.24-4.24"/></svg>
+                                    ${data.humidity}%
+                                </span>
+                                <span class="text-[10px] text-slate-400 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
+                                    ${data.wind} m/s
+                                </span>
+                            </div>`;
+                    } else {
+                        contentEl.innerHTML = '<span class="text-xs text-slate-400">Gagal memuat cuaca</span>';
+                    }
+                })
+                .catch(() => {
+                    contentEl.innerHTML = '<span class="text-xs text-slate-400">Cuaca tidak tersedia</span>';
+                });
+        }
+
+        // Get user location and fetch weather
+        function initWeather() {
+            const contentEl = document.getElementById('weatherContent');
+            const locationEl = document.getElementById('weatherLocation');
+            
+            if ('geolocation' in navigator) {
+                contentEl.innerHTML = '<span class="text-xs opacity-50 font-medium">Mendapatkan lokasi...</span>';
+                
+                navigator.geolocation.getCurrentPosition(
+                    // Success - got user location
+                    (position) => {
+                        const lat = position.coords.latitude.toFixed(4);
+                        const lon = position.coords.longitude.toFixed(4);
+                        
+                        // Reverse geocoding to get city name
+                        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`)
+                            .then(res => res.json())
+                            .then(geo => {
+                                const city = geo.address?.city || geo.address?.town || geo.address?.county || geo.address?.state || 'Lokasi Anda';
+                                fetchWeather(lat, lon, city);
+                            })
+                            .catch(() => {
+                                fetchWeather(lat, lon, 'Lokasi Anda');
+                            });
+                    },
+                    // Error or denied - use default Sambas
+                    () => {
+                        locationEl.textContent = 'Cuaca Sambas';
+                        fetchWeather(1.361, 109.305, 'Sambas');
+                    },
+                    { timeout: 10000, maximumAge: 300000 }
+                );
+            } else {
+                // Geolocation not supported - use default Sambas
+                locationEl.textContent = 'Cuaca Sambas';
+                fetchWeather(1.361, 109.305, 'Sambas');
+            }
+        }
+        
+        initWeather();
 
         const searchInput = document.querySelector('input[name="search"]');
         if (searchInput) {
