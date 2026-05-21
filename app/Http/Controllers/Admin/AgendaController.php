@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class AgendaController extends Controller
 {
@@ -87,7 +88,13 @@ class AgendaController extends Controller
             'created_by'   => $request->user()->id,
         ]);
 
-        $documents = array_filter((array) $request->file('documents', []));
+        $documents = $this->collectUploadedDocuments($request);
+        if (empty($documents) && $request->hasFile('documents')) {
+            \Log::warning('documents input present but no uploaded files collected', [
+                'all_files_keys' => array_keys($request->allFiles()),
+                'files_count' => count($request->allFiles()),
+            ]);
+        }
 
         if (! empty($documents)) {
             try {
@@ -129,7 +136,13 @@ class AgendaController extends Controller
     {
         $agenda->update($request->validated());
 
-        $documents = array_filter((array) $request->file('documents', []));
+        $documents = $this->collectUploadedDocuments($request);
+        if (empty($documents) && $request->hasFile('documents')) {
+            \Log::warning('documents input present but no uploaded files collected', [
+                'all_files_keys' => array_keys($request->allFiles()),
+                'files_count' => count($request->allFiles()),
+            ]);
+        }
 
         if (! empty($documents)) {
             try {
@@ -304,6 +317,28 @@ class AgendaController extends Controller
         $mime = $finfo->buffer($content);
 
         return is_string($mime) ? $mime : null;
+    }
+
+    /**
+     * Collect uploaded files from any documents-related input key.
+     */
+    private function collectUploadedDocuments(Request $request): array
+    {
+        $files = [];
+
+        foreach ($request->allFiles() as $key => $value) {
+            if ($key !== 'documents' && ! str_starts_with($key, 'documents')) {
+                continue;
+            }
+
+            foreach ((array) $value as $item) {
+                if ($item instanceof UploadedFile) {
+                    $files[] = $item;
+                }
+            }
+        }
+
+        return $files;
     }
 
     private function filteredQuery(Request $request): Builder
