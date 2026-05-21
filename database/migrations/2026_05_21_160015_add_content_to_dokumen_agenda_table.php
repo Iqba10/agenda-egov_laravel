@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -12,10 +13,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('dokumen_agenda', function (Blueprint $table) {
-            $table->longBlob('content')->nullable()->after('content_hash');
-            $table->string('mime_type', 100)->nullable()->after('content');
+            $table->string('mime_type', 100)->nullable()->after('content_hash');
             $table->unsignedInteger('file_size')->nullable()->after('mime_type');
         });
+
+        // Add LONGBLOB column for storing file content
+        DB::statement('ALTER TABLE dokumen_agenda ADD COLUMN content LONGBLOB NULL AFTER content_hash');
     }
 
     /**
