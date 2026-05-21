@@ -50,9 +50,18 @@ class FonnteSender
             if ($response->successful()) {
                 $data = $response->json();
 
-                // Fonnte returns status in response
-                if (isset($data['status']) && $data['status'] === true) {
+                Log::info('Fonnte API response', ['phone' => $phone, 'response' => $data]);
+
+                // Fonnte returns status in response (could be boolean true or string "true")
+                $status = $data['status'] ?? false;
+                if ($status === true || $status === 'true' || $status == 1) {
                     Log::info('WhatsApp sent successfully', ['phone' => $phone]);
+                    return ['success' => true, 'data' => $data];
+                }
+
+                // Check for detail/process field (alternative success indicator)
+                if (isset($data['detail']) || isset($data['process'])) {
+                    Log::info('WhatsApp sent (via detail/process)', ['phone' => $phone]);
                     return ['success' => true, 'data' => $data];
                 }
 
@@ -60,7 +69,7 @@ class FonnteSender
                     'phone'    => $phone,
                     'response' => $data,
                 ]);
-                return ['success' => false, 'error' => $data['reason'] ?? 'Unknown error', 'data' => $data];
+                return ['success' => false, 'error' => $data['reason'] ?? $data['detail'] ?? 'Unknown error', 'data' => $data];
             }
 
             Log::error('Fonnte API request failed', [
