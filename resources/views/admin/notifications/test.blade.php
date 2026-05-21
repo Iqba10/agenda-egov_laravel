@@ -156,7 +156,6 @@
     </div>
 </div>
 
-@push('scripts')
 <script>
 const csrfToken = '{{ csrf_token() }}';
 
@@ -350,5 +349,4 @@ async function loadFirebaseSDK() {
     });
 }
 </script>
-@endpush
 @endsection
