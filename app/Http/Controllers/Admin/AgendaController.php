@@ -87,9 +87,11 @@ class AgendaController extends Controller
             'created_by'   => $request->user()->id,
         ]);
 
-        if ($request->hasFile('documents')) {
+        $documents = array_filter((array) $request->file('documents', []));
+
+        if (! empty($documents)) {
             try {
-                $this->uploadDocuments($agenda, $request->file('documents'));
+                $this->uploadDocuments($agenda, $documents);
             } catch (\Throwable $e) {
                 \Log::error('Document upload failed', ['error' => $e->getMessage()]);
                 return redirect()->route('admin.agendas.show', $agenda)->with('toast', [
@@ -127,9 +129,11 @@ class AgendaController extends Controller
     {
         $agenda->update($request->validated());
 
-        if ($request->hasFile('documents')) {
+        $documents = array_filter((array) $request->file('documents', []));
+
+        if (! empty($documents)) {
             try {
-                $this->uploadDocuments($agenda, $request->file('documents'));
+                $this->uploadDocuments($agenda, $documents);
             } catch (\Throwable $e) {
                 \Log::error('Document upload failed', ['error' => $e->getMessage()]);
                 return redirect()->route('admin.agendas.show', $agenda)->with('toast', [
@@ -182,18 +186,18 @@ class AgendaController extends Controller
         $databaseContentMaxBytes = 10485760; // 10 MB
 
         foreach ($files as $file) {
-            if (!$file->isValid()) {
-                \Log::warning('Uploaded file is not valid', [
-                    'name' => $file->getClientOriginalName(),
-                    'error' => $file->getError(),
-                ]);
-                continue;
-            }
-
             $originalName = $file->getClientOriginalName();
             $extension    = $file->getClientOriginalExtension();
             $fileSize     = (int) $file->getSize();
             $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+
+            if ($file->getError() !== UPLOAD_ERR_OK) {
+                \Log::warning('Uploaded file has non-OK error code', [
+                    'name' => $originalName,
+                    'error' => $file->getError(),
+                    'message' => $file->getErrorMessage(),
+                ]);
+            }
 
             if (! in_array(strtolower($extension), $allowedExtensions, true)) {
                 \Log::warning('Unsupported document extension', [
