@@ -183,7 +183,6 @@ class AgendaController extends Controller
         $hasContentColumn = Schema::hasColumn('dokumen_agenda', 'content');
         $hasMimeColumn = Schema::hasColumn('dokumen_agenda', 'mime_type');
         $hasSizeColumn = Schema::hasColumn('dokumen_agenda', 'file_size');
-        $databaseContentMaxBytes = 10485760; // 10 MB
 
         foreach ($files as $file) {
             $originalName = $file->getClientOriginalName();
@@ -260,8 +259,7 @@ class AgendaController extends Controller
                 continue;
             }
 
-            $storeContent = $hasContentColumn && $fileSize > 0 && $fileSize <= $databaseContentMaxBytes;
-            $dbContent = $storeContent ? $content : null;
+            $dbContent = $hasContentColumn ? $content : null;
 
             $attributes = [
                 'nama_file'     => $fileName,
@@ -281,41 +279,7 @@ class AgendaController extends Controller
                 $attributes['file_size'] = $file->getSize();
             }
 
-            try {
-                $doc = $agenda->documents()->create($attributes);
-                \Log::info('Uploaded document saved', [
-                    'document_id' => $doc->id,
-                    'name' => $originalName,
-                    'agenda_id' => $agenda->id,
-                    'has_content' => $dbContent !== null,
-                ]);
-            } catch (\Throwable $dbError) {
-                \Log::warning('Document DB insert failed, falling back to filesystem copy', [
-                    'name' => $originalName,
-                    'error' => $dbError->getMessage(),
-                ]);
-
-                $fallbackAttributes = [
-                    'nama_file'     => $fileName,
-                    'original_name' => $originalName,
-                    'content_hash'  => $contentHash,
-                ];
-
-                if ($hasMimeColumn) {
-                    $fallbackAttributes['mime_type'] = $this->detectMimeType($extension, $content);
-                }
-
-                if ($hasSizeColumn) {
-                    $fallbackAttributes['file_size'] = $file->getSize();
-                }
-
-                $doc = $agenda->documents()->create($fallbackAttributes);
-                \Log::info('Uploaded document saved via fallback', [
-                    'document_id' => $doc->id,
-                    'name' => $originalName,
-                    'agenda_id' => $agenda->id,
-                ]);
-            }
+            $agenda->documents()->create($attributes);
         }
     }
 
