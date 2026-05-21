@@ -177,20 +177,28 @@ class AgendaReminderService
         $channel = $data['channel'] ?? 'whatsapp';
 
         foreach ($agendaIds as $agendaId) {
-            // Untuk WhatsApp/both, simpan ke notifikasi_pendaftar
-            if (in_array($channel, ['whatsapp', 'both']) && !empty($data['phone_number'])) {
-                $subscriber = $this->subscribe([
-                    'agenda_id'    => $agendaId,
-                    'phone_number' => $data['phone_number'],
-                    'nama'         => $data['nama'] ?? null,
-                    'channel'      => $channel,
-                ]);
-                $results[] = $subscriber;
-            }
+            try {
+                // Untuk WhatsApp/both, simpan ke notifikasi_pendaftar
+                if (in_array($channel, ['whatsapp', 'both']) && !empty($data['phone_number'])) {
+                    $subscriber = $this->subscribe([
+                        'agenda_id'    => $agendaId,
+                        'phone_number' => $data['phone_number'],
+                        'nama'         => $data['nama'] ?? null,
+                        'channel'      => $channel,
+                    ]);
+                    $results[] = $subscriber;
+                }
 
-            // Untuk FCM/both, subscribe token ke agenda
-            if (in_array($channel, ['fcm', 'both']) && !empty($data['fcm_token'])) {
-                $this->subscribeFcmToAgenda($data['fcm_token'], $agendaId);
+                // Untuk FCM/both, subscribe token ke agenda
+                if (in_array($channel, ['fcm', 'both']) && !empty($data['fcm_token'])) {
+                    $this->subscribeFcmToAgenda($data['fcm_token'], $agendaId);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('subscribeToMultipleAgendas item failed', [
+                    'agenda_id' => $agendaId,
+                    'channel' => $channel,
+                    'message' => $e->getMessage(),
+                ]);
             }
         }
 
