@@ -218,31 +218,19 @@ class AgendaController extends Controller
             }
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
-            $storedPath = $file->storeAs('agendas/documents', $fileName, 'public');
-            if (! $storedPath) {
-                \Log::warning('Failed to store uploaded document', [
+            $content = '';
+            $sourcePath = $file->getRealPath() ?: $file->getPathname();
+            if ($sourcePath && is_file($sourcePath)) {
+                $content = file_get_contents($sourcePath) ?: '';
+            } else {
+                \Log::warning('Upload source path is not readable', [
                     'name' => $originalName,
-                    'file_name' => $fileName,
+                    'path' => $sourcePath,
                 ]);
-                continue;
             }
 
-            $disk = Storage::disk('public');
-            if (! $disk->exists($storedPath)) {
-                \Log::warning('Stored document missing after upload', [
-                    'name' => $originalName,
-                    'stored_path' => $storedPath,
-                ]);
-                continue;
-            }
-
-            $content = $disk->get($storedPath);
-            if ($content === false) {
-                $content = '';
-            }
-
-            if ($extension === '' && str_starts_with($content, '%PDF-')) {
-                $extension = 'pdf';
+            if ($content !== '') {
+                Storage::disk('public')->put('agendas/documents/' . $fileName, $content);
             }
 
             $contentHash = $content !== ''
@@ -256,7 +244,6 @@ class AgendaController extends Controller
                     'hash' => $contentHash,
                     'agenda_id' => $agenda->id,
                 ]);
-                $disk->delete($storedPath);
                 continue;
             }
 
