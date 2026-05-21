@@ -179,6 +179,7 @@ class AgendaController extends Controller
         $hasContentColumn = Schema::hasColumn('dokumen_agenda', 'content');
         $hasMimeColumn = Schema::hasColumn('dokumen_agenda', 'mime_type');
         $hasSizeColumn = Schema::hasColumn('dokumen_agenda', 'file_size');
+        $databaseContentMaxBytes = 10485760; // 10 MB
 
         foreach ($files as $file) {
             if (!$file->isValid()) {
@@ -187,6 +188,7 @@ class AgendaController extends Controller
 
             $originalName = $file->getClientOriginalName();
             $extension    = $file->getClientOriginalExtension();
+            $fileSize     = (int) $file->getSize();
             
             // Read file content safely
             $filePath = $file->getRealPath();
@@ -195,13 +197,7 @@ class AgendaController extends Controller
                 continue;
             }
 
-            $content = file_get_contents($filePath);
-            if ($content === false) {
-                \Log::warning('Failed to read upload file', ['name' => $originalName]);
-                continue;
-            }
-
-            $contentHash = hash('sha256', $content);
+            $contentHash = hash_file('sha256', $filePath);
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
@@ -212,6 +208,9 @@ class AgendaController extends Controller
 
             // Always keep a filesystem copy as a fallback.
             Storage::disk('public')->putFileAs('agendas/documents', $file, $fileName);
+
+            $storeContent = $hasContentColumn && $fileSize > 0 && $fileSize <= $databaseContentMaxBytes;
+            $content = $storeContent ? file_get_contents($filePath) : null;
 
             $attributes = [
                 'nama_file'     => $fileName,
@@ -244,10 +243,6 @@ class AgendaController extends Controller
                     'original_name' => $originalName,
                     'content_hash'  => $contentHash,
                 ];
-
-                if ($hasContentColumn) {
-                    $fallbackAttributes['content'] = null;
-                }
 
                 if ($hasMimeColumn) {
                     $fallbackAttributes['mime_type'] = $file->getMimeType();
