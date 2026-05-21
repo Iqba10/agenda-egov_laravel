@@ -379,7 +379,7 @@
                     </div>
                     <div>
                         <p class="font-bold text-slate-900 text-sm leading-tight">Dapatkan Pengingat Agenda</p>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Pilih metode & agenda — notifikasi dikirim saat ini, 24 jam & 6 jam sebelumnya.</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Pilih metode & agenda — notifikasi dikirim 1 jam sebelum agenda dimulai.</p>
                     </div>
                 </div>
             </div>

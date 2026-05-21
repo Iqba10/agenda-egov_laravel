@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 class SendAgendaReminders extends Command
 {
     protected $signature   = 'agenda:send-reminders';
-    protected $description = 'Kirim pengingat WhatsApp dan FCM 24 jam dan 6 jam sebelum agenda dimulai.';
+    protected $description = 'Kirim pengingat WhatsApp dan FCM 1 jam sebelum agenda dimulai.';
 
     public function handle(AgendaReminderService $service, FcmSender $fcm): int
     {

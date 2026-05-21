@@ -109,13 +109,13 @@ class NotificationController extends Controller
             if ($sent) {
                 return response()->json([
                     'success' => true,
-                    'message' => "Terdaftar! Konfirmasi dikirim via {$channelLabel}. Anda juga akan diingatkan 24 jam dan 6 jam sebelum agenda.",
+                    'message' => "Terdaftar! Konfirmasi dikirim via {$channelLabel}. Anda juga akan diingatkan 1 jam sebelum agenda dimulai.",
                 ]);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} sebelum agenda dimulai.",
+                'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} 1 jam sebelum agenda dimulai.",
                 'results' => $results,
             ]);
 
