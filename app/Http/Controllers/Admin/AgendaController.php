@@ -21,10 +21,27 @@ class AgendaController extends Controller
     {
         $status      = $request->string('status')->toString();
         $base        = $this->filteredQuery($request);
+        
+        // Calculate effective status counts based on timestamps
         $statsCounts = (clone $base)
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status');
+            ->selectRaw("
+                CASE
+                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
+                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
+                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    ELSE 'selesai'
+                END as effective_status,
+                COUNT(*) as count
+            ")
+            ->groupByRaw("
+                CASE
+                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
+                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
+                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    ELSE 'selesai'
+                END
+            ")
+            ->pluck('count', 'effective_status');
 
         return view('admin.agendas.index', [
             'agendas' => (clone $base)->status($status)->select(['id', 'slug', 'jenis_agenda', 'perihal_kegiatan', 'waktu_mulai', 'waktu_selesai', 'tempat', 'asal_surat', 'status', 'diinput_oleh'])->latest('waktu_mulai')->paginate(12)->withQueryString(),

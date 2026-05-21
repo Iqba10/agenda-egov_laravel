@@ -33,10 +33,26 @@ class PublicAgendaController extends Controller
             $baseQuery->whereYear('waktu_mulai', $year);
         }
 
+        // Calculate effective status counts based on timestamps
         $statsCounts = (clone $baseQuery)
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status');
+            ->selectRaw("
+                CASE
+                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
+                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
+                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    ELSE 'selesai'
+                END as effective_status,
+                COUNT(*) as count
+            ")
+            ->groupByRaw("
+                CASE
+                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
+                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
+                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    ELSE 'selesai'
+                END
+            ")
+            ->pluck('count', 'effective_status');
 
         $query = (clone $baseQuery)->status($status);
 
