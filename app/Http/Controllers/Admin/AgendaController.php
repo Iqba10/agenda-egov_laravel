@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AgendaController extends Controller
@@ -175,6 +176,10 @@ class AgendaController extends Controller
 
     private function uploadDocuments(Agenda $agenda, array $files): void
     {
+        $hasContentColumn = Schema::hasColumn('dokumen_agenda', 'content');
+        $hasMimeColumn = Schema::hasColumn('dokumen_agenda', 'mime_type');
+        $hasSizeColumn = Schema::hasColumn('dokumen_agenda', 'file_size');
+
         foreach ($files as $file) {
             if (!$file->isValid()) {
                 continue;
@@ -208,29 +213,51 @@ class AgendaController extends Controller
             // Always keep a filesystem copy as a fallback.
             Storage::disk('public')->putFileAs('agendas/documents', $file, $fileName);
 
+            $attributes = [
+                'nama_file'     => $fileName,
+                'original_name' => $originalName,
+                'content_hash'  => $contentHash,
+            ];
+
+            if ($hasContentColumn) {
+                $attributes['content'] = $content;
+            }
+
+            if ($hasMimeColumn) {
+                $attributes['mime_type'] = $file->getMimeType();
+            }
+
+            if ($hasSizeColumn) {
+                $attributes['file_size'] = $file->getSize();
+            }
+
             try {
-                $agenda->documents()->create([
-                    'nama_file'     => $fileName,
-                    'original_name' => $originalName,
-                    'content_hash'  => $contentHash,
-                    'content'       => $content,
-                    'mime_type'     => $file->getMimeType(),
-                    'file_size'     => $file->getSize(),
-                ]);
+                $agenda->documents()->create($attributes);
             } catch (\Throwable $dbError) {
                 \Log::warning('Document DB insert failed, falling back to filesystem copy', [
                     'name' => $originalName,
                     'error' => $dbError->getMessage(),
                 ]);
 
-                $agenda->documents()->create([
+                $fallbackAttributes = [
                     'nama_file'     => $fileName,
                     'original_name' => $originalName,
                     'content_hash'  => $contentHash,
-                    'content'       => null,
-                    'mime_type'     => $file->getMimeType(),
-                    'file_size'     => $file->getSize(),
-                ]);
+                ];
+
+                if ($hasContentColumn) {
+                    $fallbackAttributes['content'] = null;
+                }
+
+                if ($hasMimeColumn) {
+                    $fallbackAttributes['mime_type'] = $file->getMimeType();
+                }
+
+                if ($hasSizeColumn) {
+                    $fallbackAttributes['file_size'] = $file->getSize();
+                }
+
+                $agenda->documents()->create($fallbackAttributes);
             }
         }
     }
