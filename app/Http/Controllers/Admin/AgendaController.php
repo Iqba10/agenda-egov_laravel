@@ -191,6 +191,14 @@ class AgendaController extends Controller
             $fileSize     = (int) $file->getSize();
             $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
 
+            \Log::info('Processing uploaded document', [
+                'name' => $originalName,
+                'extension' => $extension,
+                'mime' => $file->getMimeType(),
+                'size' => $fileSize,
+                'error' => $file->getError(),
+            ]);
+
             if ($file->getError() !== UPLOAD_ERR_OK) {
                 \Log::warning('Uploaded file has non-OK error code', [
                     'name' => $originalName,
@@ -245,6 +253,11 @@ class AgendaController extends Controller
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
+                \Log::info('Skipping duplicate uploaded document', [
+                    'name' => $originalName,
+                    'hash' => $contentHash,
+                    'agenda_id' => $agenda->id,
+                ]);
                 continue;
             }
 
@@ -270,7 +283,13 @@ class AgendaController extends Controller
             }
 
             try {
-                $agenda->documents()->create($attributes);
+                $doc = $agenda->documents()->create($attributes);
+                \Log::info('Uploaded document saved', [
+                    'document_id' => $doc->id,
+                    'name' => $originalName,
+                    'agenda_id' => $agenda->id,
+                    'has_content' => $dbContent !== null,
+                ]);
             } catch (\Throwable $dbError) {
                 \Log::warning('Document DB insert failed, falling back to filesystem copy', [
                     'name' => $originalName,
@@ -291,7 +310,12 @@ class AgendaController extends Controller
                     $fallbackAttributes['file_size'] = $file->getSize();
                 }
 
-                $agenda->documents()->create($fallbackAttributes);
+                $doc = $agenda->documents()->create($fallbackAttributes);
+                \Log::info('Uploaded document saved via fallback', [
+                    'document_id' => $doc->id,
+                    'name' => $originalName,
+                    'agenda_id' => $agenda->id,
+                ]);
             }
         }
     }
