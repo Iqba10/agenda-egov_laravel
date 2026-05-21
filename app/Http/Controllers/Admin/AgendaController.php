@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AgendaController extends Controller
@@ -145,7 +146,10 @@ class AgendaController extends Controller
 
     public function destroy(Agenda $agenda): RedirectResponse
     {
-        // Documents will be cascade deleted via foreign key
+        foreach ($agenda->documents as $doc) {
+            $this->deleteDocumentFile($doc);
+        }
+
         $agenda->delete();
 
         return redirect()->route('admin.dashboard')->with('toast', [
@@ -156,6 +160,7 @@ class AgendaController extends Controller
 
     public function destroyDocument(Agenda $agenda, AgendaDocument $document): JsonResponse|RedirectResponse
     {
+        $this->deleteDocumentFile($document);
         $document->delete();
 
         if (request()->wantsJson() || request()->hasHeader('X-HTTP-Method-Override')) {
@@ -200,14 +205,42 @@ class AgendaController extends Controller
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
 
-            $agenda->documents()->create([
-                'nama_file'     => $fileName,
-                'original_name' => $originalName,
-                'content_hash'  => $contentHash,
-                'content'       => $content,
-                'mime_type'     => $file->getMimeType(),
-                'file_size'     => $file->getSize(),
-            ]);
+            // Always keep a filesystem copy as a fallback.
+            Storage::disk('public')->putFileAs('agendas/documents', $file, $fileName);
+
+            try {
+                $agenda->documents()->create([
+                    'nama_file'     => $fileName,
+                    'original_name' => $originalName,
+                    'content_hash'  => $contentHash,
+                    'content'       => $content,
+                    'mime_type'     => $file->getMimeType(),
+                    'file_size'     => $file->getSize(),
+                ]);
+            } catch (\Throwable $dbError) {
+                \Log::warning('Document DB insert failed, falling back to filesystem copy', [
+                    'name' => $originalName,
+                    'error' => $dbError->getMessage(),
+                ]);
+
+                $agenda->documents()->create([
+                    'nama_file'     => $fileName,
+                    'original_name' => $originalName,
+                    'content_hash'  => $contentHash,
+                    'content'       => null,
+                    'mime_type'     => $file->getMimeType(),
+                    'file_size'     => $file->getSize(),
+                ]);
+            }
+        }
+    }
+
+    private function deleteDocumentFile(AgendaDocument $document): void
+    {
+        $path = 'agendas/documents/' . $document->nama_file;
+
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
         }
     }
 
