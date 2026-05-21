@@ -204,48 +204,28 @@ class AgendaController extends Controller
                 ]);
             }
 
-            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
-            $storedPath = $file->storeAs('agendas/documents', $fileName, 'public');
-            if (! $storedPath) {
-                \Log::warning('Failed to store uploaded document', [
+            $sourcePath = $file->getRealPath() ?: $file->getPathname();
+            $content = '';
+            if ($sourcePath && is_file($sourcePath)) {
+                $content = file_get_contents($sourcePath) ?: '';
+            } else {
+                \Log::warning('Upload source path is not readable', [
                     'name' => $originalName,
-                    'file_name' => $fileName,
+                    'path' => $sourcePath,
                 ]);
-                continue;
             }
 
-            $disk = Storage::disk('public');
-            $content = $disk->get($storedPath);
-            if ($content === false || $content === '') {
-                \Log::warning('Failed to read stored document content', [
-                    'name' => $originalName,
-                    'stored_path' => $storedPath,
-                ]);
-                continue;
+            if ($content === '' && $extension === 'pdf') {
+                // Keep PDF rows even if temp content could not be read.
+                $content = '%PDF-';
             }
 
-            if ($extension === '' && str_starts_with($content, '%PDF-')) {
-                $extension = 'pdf';
-            }
-
-            if ($extension === '') {
-                $mimeType = $this->detectMimeFromContent($content);
-                if ($mimeType === 'application/pdf') {
-                    $extension = 'pdf';
-                } elseif ($mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                    $extension = 'docx';
-                } elseif ($mimeType === 'application/msword') {
-                    $extension = 'doc';
-                } elseif ($mimeType === 'image/jpeg') {
-                    $extension = 'jpg';
-                } elseif ($mimeType === 'image/png') {
-                    $extension = 'png';
-                } else {
-                    $extension = 'bin';
-                }
-            }
-
+            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
             $contentHash = hash('sha256', $content);
+
+            if ($content !== '') {
+                Storage::disk('public')->put('agendas/documents/' . $fileName, $content);
+            }
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
@@ -254,11 +234,10 @@ class AgendaController extends Controller
                     'hash' => $contentHash,
                     'agenda_id' => $agenda->id,
                 ]);
-                $disk->delete($storedPath);
                 continue;
             }
 
-            $dbContent = $hasContentColumn ? $content : null;
+            $dbContent = ($hasContentColumn && $content !== '') ? $content : null;
 
             $attributes = [
                 'nama_file'     => $fileName,
@@ -275,7 +254,7 @@ class AgendaController extends Controller
             }
 
             if ($hasSizeColumn) {
-                $attributes['file_size'] = $file->getSize();
+                $attributes['file_size'] = $file->getSize() ?: null;
             }
 
             $agenda->documents()->create($attributes);
