@@ -331,14 +331,29 @@ class AgendaController extends Controller
                 continue;
             }
 
-            foreach ((array) $value as $item) {
-                if ($item instanceof UploadedFile) {
-                    $files[] = $item;
-                }
-            }
+            $this->flattenUploadedFiles($value, $files);
         }
 
         return $files;
+    }
+
+    /**
+     * Recursively flatten nested uploaded file arrays.
+     */
+    private function flattenUploadedFiles(mixed $value, array &$files): void
+    {
+        if ($value instanceof UploadedFile) {
+            $files[] = $value;
+            return;
+        }
+
+        if (! is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $item) {
+            $this->flattenUploadedFiles($item, $files);
+        }
     }
 
     private function filteredQuery(Request $request): Builder
