@@ -11,17 +11,54 @@ class FcmSender
 {
     private ?string $projectId;
     private ?string $credentialsPath;
+    private ?string $credentialsJson;
     private ?string $accessToken = null;
 
     public function __construct()
     {
         $this->projectId       = config('services.firebase.project_id');
         $this->credentialsPath = config('services.firebase.credentials_path');
+        $this->credentialsJson = config('services.firebase.credentials_json');
     }
 
     public function isConfigured(): bool
     {
-        return !empty($this->projectId) && !empty($this->credentialsPath) && file_exists($this->credentialsPath);
+        if (empty($this->projectId)) {
+            return false;
+        }
+        
+        // Check if credentials available (either file or JSON env)
+        return $this->hasCredentials();
+    }
+    
+    private function hasCredentials(): bool
+    {
+        // Option 1: JSON from env variable
+        if (!empty($this->credentialsJson)) {
+            return true;
+        }
+        
+        // Option 2: File path
+        if (!empty($this->credentialsPath) && file_exists($this->credentialsPath)) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    private function getCredentials(): ?array
+    {
+        // Option 1: JSON from env variable
+        if (!empty($this->credentialsJson)) {
+            return json_decode($this->credentialsJson, true);
+        }
+        
+        // Option 2: File path
+        if (!empty($this->credentialsPath) && file_exists($this->credentialsPath)) {
+            return json_decode(file_get_contents($this->credentialsPath), true);
+        }
+        
+        return null;
     }
 
     public function send(string $token, string $title, string $body, array $data = []): bool
@@ -203,10 +240,10 @@ class FcmSender
         }
 
         try {
-            $credentials = json_decode(file_get_contents($this->credentialsPath), true);
+            $credentials = $this->getCredentials();
 
-            if (!isset($credentials['private_key']) || !isset($credentials['client_email'])) {
-                Log::error('Invalid Firebase credentials file');
+            if (!$credentials || !isset($credentials['private_key']) || !isset($credentials['client_email'])) {
+                Log::error('Invalid Firebase credentials');
                 return null;
             }
 

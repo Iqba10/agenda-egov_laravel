@@ -32,6 +32,7 @@ return [
     'firebase' => [
         'project_id'       => env('FIREBASE_PROJECT_ID'),
         'credentials_path' => env('FIREBASE_CREDENTIALS_PATH', storage_path('app/firebase-credentials.json')),
+        'credentials_json' => env('FIREBASE_CREDENTIALS_JSON'), // Alternative: paste JSON directly
     ],
 
 ];
