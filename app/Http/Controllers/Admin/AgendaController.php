@@ -347,6 +347,13 @@ class AgendaController extends Controller
             $this->flattenUploadedFiles($value, $files);
         }
 
+        // Fallback to raw PHP $_FILES if Laravel didn't hydrate the uploads.
+        if (empty($files) && isset($_FILES['documents'])) {
+            foreach ($this->normalizeRawFiles($_FILES['documents']) as $rawFile) {
+                $files[] = $rawFile;
+            }
+        }
+
         return $files;
     }
 
@@ -367,6 +374,55 @@ class AgendaController extends Controller
         foreach ($value as $item) {
             $this->flattenUploadedFiles($item, $files);
         }
+    }
+
+    /**
+     * Normalize raw $_FILES payload into UploadedFile instances.
+     */
+    private function normalizeRawFiles(array $rawFiles): array
+    {
+        $normalized = [];
+
+        if (! isset($rawFiles['name'])) {
+            return $normalized;
+        }
+
+        $names = $rawFiles['name'];
+        $types = $rawFiles['type'] ?? [];
+        $tmps = $rawFiles['tmp_name'] ?? [];
+        $errors = $rawFiles['error'] ?? [];
+        $sizes = $rawFiles['size'] ?? [];
+
+        $iterate = function ($name, $type, $tmp, $error, $size) use (&$normalized, &$iterate) {
+            if (is_array($name)) {
+                foreach ($name as $index => $item) {
+                    $iterate(
+                        $item,
+                        $type[$index] ?? null,
+                        $tmp[$index] ?? null,
+                        $error[$index] ?? null,
+                        $size[$index] ?? null
+                    );
+                }
+                return;
+            }
+
+            if (! is_string($tmp) || $tmp === '' || ! is_file($tmp)) {
+                return;
+            }
+
+            $normalized[] = new UploadedFile(
+                $tmp,
+                (string) $name,
+                is_string($type) ? $type : null,
+                (int) ($error ?? UPLOAD_ERR_OK),
+                true
+            );
+        };
+
+        $iterate($names, $types, $tmps, $errors, $sizes);
+
+        return $normalized;
     }
 
     private function filteredQuery(Request $request): Builder
