@@ -218,10 +218,22 @@ class AgendaController extends Controller
             }
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
-            $content = '';
-            $sourcePath = $file->getRealPath() ?: $file->getPathname();
-            if ($sourcePath && is_file($sourcePath)) {
-                $content = file_get_contents($sourcePath) ?: '';
+            $sourcePath = $file->getPathname();
+            $storageRelativePath = 'agendas/documents/' . $fileName;
+            $storageFullPath = storage_path('app/public/' . $storageRelativePath);
+
+            if ($sourcePath && is_file($sourcePath) && is_readable($sourcePath)) {
+                if (! is_dir(dirname($storageFullPath))) {
+                    mkdir(dirname($storageFullPath), 0777, true);
+                }
+
+                if (! copy($sourcePath, $storageFullPath)) {
+                    \Log::warning('Failed to copy upload to storage', [
+                        'name' => $originalName,
+                        'source' => $sourcePath,
+                        'target' => $storageFullPath,
+                    ]);
+                }
             } else {
                 \Log::warning('Upload source path is not readable', [
                     'name' => $originalName,
@@ -229,8 +241,9 @@ class AgendaController extends Controller
                 ]);
             }
 
-            if ($content !== '') {
-                Storage::disk('public')->put('agendas/documents/' . $fileName, $content);
+            $content = '';
+            if (is_file($storageFullPath) && is_readable($storageFullPath)) {
+                $content = file_get_contents($storageFullPath) ?: '';
             }
 
             $contentHash = $content !== ''
@@ -244,6 +257,9 @@ class AgendaController extends Controller
                     'hash' => $contentHash,
                     'agenda_id' => $agenda->id,
                 ]);
+                if (is_file($storageFullPath)) {
+                    @unlink($storageFullPath);
+                }
                 continue;
             }
 
