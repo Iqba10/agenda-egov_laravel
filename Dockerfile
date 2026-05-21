@@ -51,8 +51,10 @@ RUN mkdir -p storage/logs storage/framework/{cache/data,sessions,views} bootstra
 # Expose port
 EXPOSE 8080
 
-# Start command
-CMD php artisan config:cache && \
+# Start command - clear cache first, then rebuild with env vars
+CMD php artisan config:clear && \
+    php artisan cache:clear && \
+    php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache && \
     php artisan migrate --force || true && \
