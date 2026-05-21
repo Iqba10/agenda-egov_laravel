@@ -187,7 +187,7 @@ class AgendaController extends Controller
 
         foreach ($files as $file) {
             $originalName = $file->getClientOriginalName();
-            $extension    = $file->getClientOriginalExtension();
+            $extension    = strtolower($file->getClientOriginalExtension());
             $fileSize     = (int) $file->getSize();
             $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
 
@@ -206,31 +206,30 @@ class AgendaController extends Controller
                 ]);
                 continue;
             }
-            
-            // Read file content safely
-            $filePath = $file->getRealPath() ?: $file->getPathname();
-            if (!$filePath || !is_file($filePath)) {
-                \Log::warning('Upload file path is not a file', [
-                    'name' => $originalName,
-                    'path' => $filePath,
-                ]);
-                continue;
-            }
-
-            $contentHash = hash_file('sha256', $filePath);
-
-            // Skip duplicate files only for THIS agenda
-            if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
-                continue;
-            }
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
 
             // Always keep a filesystem copy as a fallback.
             Storage::disk('public')->putFileAs('agendas/documents', $file, $fileName);
 
+            $storedPath = storage_path('app/public/agendas/documents/' . $fileName);
+            if (! is_file($storedPath)) {
+                \Log::warning('Stored document not found after upload', [
+                    'name' => $originalName,
+                    'stored_path' => $storedPath,
+                ]);
+                continue;
+            }
+
+            $contentHash = hash_file('sha256', $storedPath);
+
+            // Skip duplicate files only for THIS agenda
+            if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
+                continue;
+            }
+
             $storeContent = $hasContentColumn && $fileSize > 0 && $fileSize <= $databaseContentMaxBytes;
-            $content = $storeContent ? file_get_contents($filePath) : null;
+            $content = $storeContent ? file_get_contents($storedPath) : null;
 
             $attributes = [
                 'nama_file'     => $fileName,
