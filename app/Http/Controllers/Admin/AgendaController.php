@@ -217,40 +217,6 @@ class AgendaController extends Controller
                 ]);
             }
 
-            $sourcePath = $file->getRealPath() ?: $file->getPathname();
-            if (! $sourcePath || ! is_file($sourcePath) || ! is_readable($sourcePath)) {
-                \Log::warning('Upload source path is not readable', [
-                    'name' => $originalName,
-                    'path' => $sourcePath,
-                ]);
-                continue;
-            }
-
-            $content = file_get_contents($sourcePath);
-            if ($content === false || $content === '') {
-                \Log::warning('Failed to read uploaded file content', [
-                    'name' => $originalName,
-                    'path' => $sourcePath,
-                ]);
-                continue;
-            }
-
-            if ($extension === '' && str_starts_with($content, '%PDF-')) {
-                $extension = 'pdf';
-            }
-
-            if ($extension === '') {
-                $mimeType = $this->detectMimeFromContent($content);
-                $extension = match ($mimeType) {
-                    'application/pdf' => 'pdf',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                    'application/msword' => 'doc',
-                    'image/jpeg' => 'jpg',
-                    'image/png' => 'png',
-                    default => 'bin',
-                };
-            }
-
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
             $storageRelativePath = 'agendas/documents/' . $fileName;
             $storageFullPath = storage_path('app/public/' . $storageRelativePath);
@@ -258,7 +224,20 @@ class AgendaController extends Controller
                 mkdir(dirname($storageFullPath), 0777, true);
             }
 
-            Storage::disk('public')->put($storageRelativePath, $content);
+            try {
+                $file->storeAs('agendas/documents', $fileName, 'public');
+            } catch (\Throwable $storeError) {
+                \Log::warning('Failed to store uploaded document', [
+                    'name' => $originalName,
+                    'file_name' => $fileName,
+                    'error' => $storeError->getMessage(),
+                ]);
+            }
+
+            $content = '';
+            if (is_file($storageFullPath) && is_readable($storageFullPath)) {
+                $content = file_get_contents($storageFullPath) ?: '';
+            }
 
             $contentHash = $content !== ''
                 ? hash('sha256', $content)
@@ -274,7 +253,6 @@ class AgendaController extends Controller
                 if (is_file($storageFullPath)) {
                     @unlink($storageFullPath);
                 }
-                Storage::disk('public')->delete($storageRelativePath);
                 continue;
             }
 
