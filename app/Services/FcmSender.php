@@ -117,11 +117,15 @@ class FcmSender
                 $this->deactivateToken($token);
             }
 
+            $errorBody = $response->json() ?? $response->body();
             Log::error('FCM API error', [
                 'status' => $response->status(),
-                'body'   => $response->body(),
+                'body'   => $errorBody,
             ]);
-            return ['success' => false, 'error' => 'HTTP ' . $response->status(), 'body' => $response->body()];
+            $errorMsg = is_array($errorBody) && isset($errorBody['error']['message']) 
+                ? $errorBody['error']['message'] 
+                : 'HTTP ' . $response->status();
+            return ['success' => false, 'error' => $errorMsg, 'data' => $errorBody];
 
         } catch (\Throwable $e) {
             Log::error('FCM exception', ['message' => $e->getMessage()]);
@@ -170,11 +174,15 @@ class FcmSender
                 return ['success' => true, 'data' => $response->json()];
             }
 
+            $errorBody = $response->json() ?? $response->body();
             Log::error('FCM topic broadcast error', [
                 'status' => $response->status(),
-                'body'   => $response->body(),
+                'body'   => $errorBody,
             ]);
-            return ['success' => false, 'error' => 'HTTP ' . $response->status(), 'body' => $response->body()];
+            $errorMsg = is_array($errorBody) && isset($errorBody['error']['message']) 
+                ? $errorBody['error']['message'] 
+                : 'HTTP ' . $response->status();
+            return ['success' => false, 'error' => $errorMsg, 'data' => $errorBody];
 
         } catch (\Throwable $e) {
             Log::error('FCM topic exception', ['message' => $e->getMessage()]);
