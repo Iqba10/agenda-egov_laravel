@@ -126,7 +126,7 @@
                                 @if($doc->type === 'pdf')
                                     <div class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative">
                                         <div id="doc-loading-{{ $doc->id }}" class="absolute inset-0 flex items-center justify-center text-xs text-slate-400">Memuat dokumen...</div>
-                                        <iframe id="doc-frame-{{ $doc->id }}" src="{{ $doc->url }}#toolbar=0&navpanes=0&scrollbar=0" class="w-full relative z-10" style="height:480px;" frameborder="0"></iframe>
+                                        <iframe id="doc-frame-{{ $doc->id }}" class="w-full relative z-10" style="height:480px;" frameborder="0"></iframe>
                                     </div>
                                 @elseif($doc->type === 'image')
                                     <div class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center p-2 min-h-24">
@@ -157,8 +157,13 @@
                                                 if (loader) loader.textContent = 'Gagal memuat dokumen.';
                                             });
                                     @else
-                                        const loader = document.getElementById('doc-loading-{{ $doc->id }}');
-                                        if (loader) loader.remove();
+                                        (function() {
+                                            const frame = document.getElementById('doc-frame-{{ $doc->id }}');
+                                            const loader = document.getElementById('doc-loading-{{ $doc->id }}');
+                                            if (!frame) return;
+                                            frame.src = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent('{{ $doc->url }}');
+                                            frame.onload = () => { if (loader) loader.remove(); };
+                                        })();
                                     @endif
                                 </script>
                             @endif
