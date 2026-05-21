@@ -90,28 +90,11 @@ class NotificationController extends Controller
             // Subscribe ke semua agenda yang dipilih
             $results = $this->reminderService->subscribeToMultipleAgendas($data);
 
-            // Kirim konfirmasi langsung, tapi jangan gagalkan pendaftaran kalau notifikasi gagal
-            $sent = false;
-            try {
-                $sent = $this->reminderService->sendImmediateConfirmation($data);
-            } catch (\Throwable $confirmError) {
-                \Log::warning('Immediate confirmation failed', [
-                    'message' => $confirmError->getMessage(),
-                ]);
-            }
-
             $channelLabel = match ($channel) {
                 'whatsapp' => 'WhatsApp',
                 'fcm'      => 'notifikasi browser',
                 'both'     => 'WhatsApp dan notifikasi browser',
             };
-
-            if ($sent) {
-                return response()->json([
-                    'success' => true,
-                    'message' => "Terdaftar! Konfirmasi dikirim via {$channelLabel}. Anda juga akan diingatkan 1 jam sebelum agenda dimulai.",
-                ]);
-            }
 
             return response()->json([
                 'success' => true,

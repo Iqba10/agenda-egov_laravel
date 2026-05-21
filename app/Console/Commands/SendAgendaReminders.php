@@ -21,49 +21,7 @@ class SendAgendaReminders extends Command
         $this->info('Memulai pengiriman pengingat agenda...');
         $this->newLine();
 
-        // 1. Kirim pengingat H-1 (24 jam sebelumnya)
-        $this->info('📅 Cek pengingat H-1 (24 jam)...');
-
-        $agendas24h = Agenda::query()
-            ->where('status', '!=', 'dibatalkan')
-            ->whereBetween('waktu_mulai', [
-                $now->copy()->addHours(23),
-                $now->copy()->addHours(25),
-            ])
-            ->get();
-
-        foreach ($agendas24h as $agenda) {
-            $count = $this->sendRemindersForAgenda($agenda, '24h', $service, $fcm);
-            $sent += $count;
-
-            if ($count > 0) {
-                $this->line("   ✓ {$agenda->perihal_kegiatan}: {$count} notifikasi");
-            }
-        }
-
-        // 2. Kirim pengingat 6 jam sebelumnya
-        $this->newLine();
-        $this->info('⏰ Cek pengingat 6 jam...');
-
-        $agendas6h = Agenda::query()
-            ->where('status', '!=', 'dibatalkan')
-            ->whereBetween('waktu_mulai', [
-                $now->copy()->addHours(5),
-                $now->copy()->addHours(7),
-            ])
-            ->get();
-
-        foreach ($agendas6h as $agenda) {
-            $count = $this->sendRemindersForAgenda($agenda, '6h', $service, $fcm);
-            $sent += $count;
-
-            if ($count > 0) {
-                $this->line("   ✓ {$agenda->perihal_kegiatan}: {$count} notifikasi");
-            }
-        }
-
-        // 3. Kirim pengingat 1 jam sebelumnya
-        $this->newLine();
+        // Kirim pengingat 1 jam sebelumnya
         $this->info('⏱️ Cek pengingat 1 jam...');
 
         $agendas1h = Agenda::query()
