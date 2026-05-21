@@ -27,7 +27,7 @@ class StoreAgendaRequest extends FormRequest
             'status' => ['required', 'in:terjadwal,selesai,dibatalkan'],
             'keterangan' => ['nullable', 'string'],
             'documents' => ['nullable', 'array', 'max:5'],
-            'documents.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,docx,xlsx', 'max:5120'],
+            'documents.*' => ['nullable', 'file', 'max:5120', 'mimetypes:application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.ms-excel'],
         ];
     }
 
