@@ -88,7 +88,7 @@ class NotificationController extends Controller
 
         try {
             // Subscribe ke semua agenda yang dipilih
-            $this->reminderService->subscribeToMultipleAgendas($data);
+            $results = $this->reminderService->subscribeToMultipleAgendas($data);
 
             // Kirim konfirmasi langsung
             $sent = $this->reminderService->sendImmediateConfirmation($data);
@@ -109,13 +109,14 @@ class NotificationController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} sebelum agenda dimulai.",
+                'results' => $results,
             ]);
 
         } catch (\Throwable $e) {
             report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan. Silakan coba lagi.',
+                'message' => config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan. Silakan coba lagi.',
             ], 500);
         }
     }

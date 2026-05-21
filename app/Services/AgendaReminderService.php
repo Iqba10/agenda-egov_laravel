@@ -106,6 +106,7 @@ class AgendaReminderService
      */
     public function subscribe(array $data): NotifikasiPendaftar
     {
+        \Log::info('subscribe() payload', $data);
         $fcmTokenId = null;
         if (!empty($data['fcm_token'])) {
             $fcmToken = $this->registerFcmToken($data['fcm_token']);
@@ -149,6 +150,7 @@ class AgendaReminderService
      */
     public function subscribeFcmToAgenda(string $token, int $agendaId): bool
     {
+        \Log::info('subscribeFcmToAgenda()', ['agenda_id' => $agendaId, 'token_prefix' => substr($token, 0, 12)]);
         $fcmToken = FcmToken::findByToken($token);
 
         if (!$fcmToken) {
@@ -164,6 +166,12 @@ class AgendaReminderService
      */
     public function subscribeToMultipleAgendas(array $data): array
     {
+        \Log::info('subscribeToMultipleAgendas()', [
+            'channel' => $data['channel'] ?? null,
+            'agenda_ids' => $data['agenda_ids'] ?? [],
+            'has_phone' => !empty($data['phone_number']),
+            'has_fcm' => !empty($data['fcm_token']),
+        ]);
         $results = [];
         $agendaIds = $data['agenda_ids'] ?? [];
         $channel = $data['channel'] ?? 'whatsapp';
