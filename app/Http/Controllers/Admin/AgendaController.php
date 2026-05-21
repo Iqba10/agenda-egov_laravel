@@ -224,20 +224,17 @@ class AgendaController extends Controller
             }
 
             $content = $disk->get($storedPath);
-            if ($content === false || $content === '') {
-                \Log::warning('Stored document is empty', [
-                    'name' => $originalName,
-                    'stored_path' => $storedPath,
-                ]);
-                $disk->delete($storedPath);
-                continue;
+            if ($content === false) {
+                $content = '';
             }
 
             if ($extension === '' && str_starts_with($content, '%PDF-')) {
                 $extension = 'pdf';
             }
 
-            $contentHash = hash('sha256', $content);
+            $contentHash = $content !== ''
+                ? hash('sha256', $content)
+                : hash('sha256', $originalName . '|' . $fileSize . '|' . $fileName);
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
@@ -250,7 +247,7 @@ class AgendaController extends Controller
                 continue;
             }
 
-            $dbContent = $hasContentColumn ? $content : null;
+            $dbContent = ($hasContentColumn && $content !== '') ? $content : null;
 
             $attributes = [
                 'nama_file'     => $fileName,
