@@ -126,7 +126,7 @@
                                 @if($doc->type === 'pdf')
                                     <div class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative">
                                         <div id="doc-loading-{{ $doc->id }}" class="absolute inset-0 flex items-center justify-center text-xs text-slate-400">Memuat dokumen...</div>
-                                        <iframe id="doc-frame-{{ $doc->id }}" class="w-full relative z-10" style="height:480px;" frameborder="0"></iframe>
+                                        <iframe id="doc-frame-{{ $doc->id }}" src="{{ $doc->url }}#toolbar=0&navpanes=0&scrollbar=0" class="w-full relative z-10" style="height:480px;" frameborder="0"></iframe>
                                     </div>
                                 @elseif($doc->type === 'image')
                                     <div class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center p-2 min-h-24">
@@ -142,24 +142,24 @@
                             </div>
                             @if($doc->type === 'pdf' || $doc->type === 'image')
                                 <script>
-                                    fetch('{{ $doc->url }}')
-                                        .then(r => r.blob())
-                                        .then(blob => {
-                                            const blobUrl = URL.createObjectURL(blob);
-                                            @if($doc->type === 'pdf')
-                                                const frame = document.getElementById('doc-frame-{{ $doc->id }}');
-                                                if (frame) { frame.src = blobUrl; }
-                                            @else
+                                    @if($doc->type === 'image')
+                                        fetch('{{ $doc->url }}')
+                                            .then(r => r.blob())
+                                            .then(blob => {
+                                                const blobUrl = URL.createObjectURL(blob);
                                                 const img = document.getElementById('doc-img-{{ $doc->id }}');
                                                 if (img) { img.src = blobUrl; img.classList.remove('hidden'); }
-                                            @endif
-                                            const loader = document.getElementById('doc-loading-{{ $doc->id }}');
-                                            if (loader) loader.remove();
-                                        })
-                                        .catch(() => {
-                                            const loader = document.getElementById('doc-loading-{{ $doc->id }}');
-                                            if (loader) loader.textContent = 'Gagal memuat dokumen.';
-                                        });
+                                                const loader = document.getElementById('doc-loading-{{ $doc->id }}');
+                                                if (loader) loader.remove();
+                                            })
+                                            .catch(() => {
+                                                const loader = document.getElementById('doc-loading-{{ $doc->id }}');
+                                                if (loader) loader.textContent = 'Gagal memuat dokumen.';
+                                            });
+                                    @else
+                                        const loader = document.getElementById('doc-loading-{{ $doc->id }}');
+                                        if (loader) loader.remove();
+                                    @endif
                                 </script>
                             @endif
                         @endforeach
