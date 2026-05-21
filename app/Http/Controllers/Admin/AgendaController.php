@@ -208,9 +208,12 @@ class AgendaController extends Controller
             }
             
             // Read file content safely
-            $filePath = $file->getRealPath();
-            if (!$filePath || !file_exists($filePath)) {
-                \Log::warning('Upload file not found', ['name' => $originalName]);
+            $filePath = $file->getRealPath() ?: $file->getPathname();
+            if (!$filePath || !is_file($filePath)) {
+                \Log::warning('Upload file path is not a file', [
+                    'name' => $originalName,
+                    'path' => $filePath,
+                ]);
                 continue;
             }
 
