@@ -27,7 +27,7 @@ class StoreAgendaRequest extends FormRequest
             'status' => ['required', 'in:terjadwal,selesai,dibatalkan'],
             'keterangan' => ['nullable', 'string'],
             'documents' => ['nullable', 'array', 'max:5'],
-            'documents.*' => ['nullable', 'file', 'max:5120', 'mimetypes:application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.ms-excel'],
+            'documents.*' => ['nullable', 'file', 'max:30720', 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx'],
         ];
     }
 
@@ -37,7 +37,7 @@ class StoreAgendaRequest extends FormRequest
             'documents.max' => 'Maksimal 5 dokumen per upload.',
             'documents.*.file' => 'File :position gagal diupload. Coba file lain.',
             'documents.*.mimes' => 'File :position harus berformat: PDF, JPG, PNG, DOCX, atau XLSX.',
-            'documents.*.max' => 'File :position maksimal 5MB.',
+            'documents.*.max' => 'File :position maksimal 30MB.',
         ];
     }
 }

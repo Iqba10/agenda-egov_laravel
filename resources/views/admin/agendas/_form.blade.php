@@ -164,7 +164,7 @@
                     </div>
                     <div class="mt-4">
                         <span class="text-sm font-semibold text-slate-700">Klik untuk upload dokumen</span>
-                        <p class="mt-1 text-xs text-slate-400">PDF, JPG, PNG, DOCX, XLSX (Maks. 5MB per file)</p>
+                        <p class="mt-1 text-xs text-slate-400">PDF, JPG, PNG, DOCX, XLSX (Maks. 30MB per file)</p>
                     </div>
                 </label>
                 <div id="file-list" class="mt-4 space-y-2 text-left hidden">
