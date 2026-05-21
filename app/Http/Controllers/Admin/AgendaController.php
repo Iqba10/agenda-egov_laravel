@@ -187,7 +187,7 @@ class AgendaController extends Controller
 
         foreach ($files as $file) {
             $originalName = $file->getClientOriginalName();
-            $extension    = strtolower($file->getClientOriginalExtension());
+            $extension    = strtolower($file->getClientOriginalExtension() ?: pathinfo($originalName, PATHINFO_EXTENSION));
             $fileSize     = (int) $file->getSize();
             $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
 
@@ -203,6 +203,7 @@ class AgendaController extends Controller
                 \Log::warning('Unsupported document extension', [
                     'name' => $originalName,
                     'extension' => $extension,
+                    'mime' => $file->getMimeType(),
                 ]);
                 continue;
             }
@@ -223,6 +224,17 @@ class AgendaController extends Controller
                     'path' => $sourcePath,
                 ]);
                 continue;
+            }
+
+            if ($extension === '' && str_starts_with($content, '%PDF-')) {
+                $extension = 'pdf';
+            }
+
+            if ($extension === '') {
+                $mimeType = $file->getMimeType();
+                if ($mimeType === 'application/pdf') {
+                    $extension = 'pdf';
+                }
             }
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
