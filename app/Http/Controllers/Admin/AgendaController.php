@@ -204,28 +204,40 @@ class AgendaController extends Controller
                 ]);
             }
 
-            $sourcePath = $file->getRealPath() ?: $file->getPathname();
-            $content = '';
-            if ($sourcePath && is_file($sourcePath)) {
-                $content = file_get_contents($sourcePath) ?: '';
-            } else {
-                \Log::warning('Upload source path is not readable', [
-                    'name' => $originalName,
-                    'path' => $sourcePath,
-                ]);
-            }
-
-            if ($content === '' && $extension === 'pdf') {
-                // Keep PDF rows even if temp content could not be read.
-                $content = '%PDF-';
-            }
-
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
-            $contentHash = hash('sha256', $content);
-
-            if ($content !== '') {
-                Storage::disk('public')->put('agendas/documents/' . $fileName, $content);
+            $storedPath = $file->storeAs('agendas/documents', $fileName, 'public');
+            if (! $storedPath) {
+                \Log::warning('Failed to store uploaded document', [
+                    'name' => $originalName,
+                    'file_name' => $fileName,
+                ]);
+                continue;
             }
+
+            $disk = Storage::disk('public');
+            if (! $disk->exists($storedPath)) {
+                \Log::warning('Stored document missing after upload', [
+                    'name' => $originalName,
+                    'stored_path' => $storedPath,
+                ]);
+                continue;
+            }
+
+            $content = $disk->get($storedPath);
+            if ($content === false || $content === '') {
+                \Log::warning('Stored document is empty', [
+                    'name' => $originalName,
+                    'stored_path' => $storedPath,
+                ]);
+                $disk->delete($storedPath);
+                continue;
+            }
+
+            if ($extension === '' && str_starts_with($content, '%PDF-')) {
+                $extension = 'pdf';
+            }
+
+            $contentHash = hash('sha256', $content);
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
@@ -234,10 +246,11 @@ class AgendaController extends Controller
                     'hash' => $contentHash,
                     'agenda_id' => $agenda->id,
                 ]);
+                $disk->delete($storedPath);
                 continue;
             }
 
-            $dbContent = ($hasContentColumn && $content !== '') ? $content : null;
+            $dbContent = $hasContentColumn ? $content : null;
 
             $attributes = [
                 'nama_file'     => $fileName,
