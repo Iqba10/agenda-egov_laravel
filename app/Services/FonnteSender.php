@@ -107,6 +107,7 @@ class FonnteSender
         $typeLabel = match ($type) {
             '24h'       => '⏰ *Pengingat H-1*',
             '6h'        => '🔔 *Pengingat 6 Jam Lagi*',
+            '1h'        => '⏱️ *Pengingat 1 Jam Lagi*',
             default     => '📋 *Konfirmasi Pendaftaran*',
         };
 
@@ -134,6 +135,7 @@ MSG;
         $typeLabel = match ($type) {
             '24h'   => '⏰ *Pengingat Agenda H-1*',
             '6h'    => '🔔 *Pengingat Agenda 6 Jam Lagi*',
+            '1h'    => '⏱️ *Pengingat Agenda 1 Jam Lagi*',
             default => '📋 *Konfirmasi Pendaftaran Pengingat*',
         };
 

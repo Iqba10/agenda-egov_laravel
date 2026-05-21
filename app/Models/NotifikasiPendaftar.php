@@ -15,10 +15,12 @@ class NotifikasiPendaftar extends Model
         'phone_number',
         'fcm_token_id',
         'channel_preference',
+        'status',
         'whatsapp_sent',
         'whatsapp_sent_at',
         'fcm_sent',
         'fcm_sent_at',
+        'sudah_dikirim',
     ];
 
     protected function casts(): array

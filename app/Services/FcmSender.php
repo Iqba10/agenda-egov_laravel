@@ -206,6 +206,7 @@ class FcmSender
         $typeLabel = match ($type) {
             '24h'   => 'Pengingat H-1',
             '6h'    => 'Pengingat 6 Jam Lagi',
+            '1h'    => 'Pengingat 1 Jam Lagi',
             default => 'Pengingat Agenda',
         };
 

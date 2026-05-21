@@ -62,6 +62,27 @@ class SendAgendaReminders extends Command
             }
         }
 
+        // 3. Kirim pengingat 1 jam sebelumnya
+        $this->newLine();
+        $this->info('⏱️ Cek pengingat 1 jam...');
+
+        $agendas1h = Agenda::query()
+            ->where('status', '!=', 'dibatalkan')
+            ->whereBetween('waktu_mulai', [
+                $now->copy()->addMinutes(59),
+                $now->copy()->addMinutes(61),
+            ])
+            ->get();
+
+        foreach ($agendas1h as $agenda) {
+            $count = $this->sendRemindersForAgenda($agenda, '1h', $service, $fcm);
+            $sent += $count;
+
+            if ($count > 0) {
+                $this->line("   ✓ {$agenda->perihal_kegiatan}: {$count} notifikasi");
+            }
+        }
+
         $this->newLine();
         $this->info("✅ Selesai. Total pengingat terkirim: {$sent}");
 
