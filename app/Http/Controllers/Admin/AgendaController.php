@@ -217,30 +217,48 @@ class AgendaController extends Controller
                 ]);
             }
 
-            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
-            $storageRelativePath = 'agendas/documents/' . $fileName;
-            $storageFullPath = storage_path('app/public/' . $storageRelativePath);
-            $storageDir = dirname($storageFullPath);
-
-            if (! is_dir($storageDir)) {
-                mkdir($storageDir, 0777, true);
-            }
-
-            try {
-                $file->move($storageDir, $fileName);
-            } catch (\Throwable $moveError) {
-                \Log::warning('Failed to move upload to storage', [
+            $sourcePath = $file->getRealPath() ?: $file->getPathname();
+            if (! $sourcePath || ! is_file($sourcePath) || ! is_readable($sourcePath)) {
+                \Log::warning('Upload source path is not readable', [
                     'name' => $originalName,
-                    'target' => $storageFullPath,
-                    'error' => $moveError->getMessage(),
+                    'path' => $sourcePath,
                 ]);
                 continue;
             }
 
-            $content = '';
-            if (is_file($storageFullPath) && is_readable($storageFullPath)) {
-                $content = file_get_contents($storageFullPath) ?: '';
+            $content = file_get_contents($sourcePath);
+            if ($content === false || $content === '') {
+                \Log::warning('Failed to read uploaded file content', [
+                    'name' => $originalName,
+                    'path' => $sourcePath,
+                ]);
+                continue;
             }
+
+            if ($extension === '' && str_starts_with($content, '%PDF-')) {
+                $extension = 'pdf';
+            }
+
+            if ($extension === '') {
+                $mimeType = $this->detectMimeFromContent($content);
+                $extension = match ($mimeType) {
+                    'application/pdf' => 'pdf',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    'application/msword' => 'doc',
+                    'image/jpeg' => 'jpg',
+                    'image/png' => 'png',
+                    default => 'bin',
+                };
+            }
+
+            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . ($extension !== '' ? $extension : 'bin');
+            $storageRelativePath = 'agendas/documents/' . $fileName;
+            $storageFullPath = storage_path('app/public/' . $storageRelativePath);
+            if (! is_dir(dirname($storageFullPath))) {
+                mkdir(dirname($storageFullPath), 0777, true);
+            }
+
+            Storage::disk('public')->put($storageRelativePath, $content);
 
             $contentHash = $content !== ''
                 ? hash('sha256', $content)
@@ -256,6 +274,7 @@ class AgendaController extends Controller
                 if (is_file($storageFullPath)) {
                     @unlink($storageFullPath);
                 }
+                Storage::disk('public')->delete($storageRelativePath);
                 continue;
             }
 
