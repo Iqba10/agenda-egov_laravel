@@ -718,6 +718,18 @@ async function submitNotifSubscribe() {
     btn.innerHTML = '<div class="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Memproses...';
 
     try {
+        if (needsFcm && !fcmToken && window.FirebaseNotification) {
+            try {
+                await window.FirebaseNotification.init();
+                await window.FirebaseNotification.requestPermission();
+                fcmToken = await window.FirebaseNotification.getToken();
+            } catch (tokenErr) {
+                console.error('FCM token init error:', tokenErr);
+                showFormMsg('Gagal mendapatkan token browser. Coba aktifkan notifikasi ulang.', false);
+                return;
+            }
+        }
+
         const payload = {
             channel: selectedChannel,
             agenda_ids: [...selectedAgendaIds],
