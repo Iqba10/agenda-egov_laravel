@@ -207,21 +207,29 @@ class AgendaController extends Controller
                 continue;
             }
 
-            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
-
-            // Always keep a filesystem copy as a fallback.
-            Storage::disk('public')->putFileAs('agendas/documents', $file, $fileName);
-
-            $storedPath = storage_path('app/public/agendas/documents/' . $fileName);
-            if (! is_file($storedPath)) {
-                \Log::warning('Stored document not found after upload', [
+            $sourcePath = $file->getRealPath() ?: $file->getPathname();
+            if (! $sourcePath || ! is_file($sourcePath)) {
+                \Log::warning('Upload source path is not readable', [
                     'name' => $originalName,
-                    'stored_path' => $storedPath,
+                    'path' => $sourcePath,
                 ]);
                 continue;
             }
 
-            $contentHash = hash_file('sha256', $storedPath);
+            $content = file_get_contents($sourcePath);
+            if ($content === false) {
+                \Log::warning('Failed to read uploaded file content', [
+                    'name' => $originalName,
+                    'path' => $sourcePath,
+                ]);
+                continue;
+            }
+
+            $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
+            $contentHash = hash('sha256', $content);
+
+            // Always keep a filesystem copy as a fallback using raw bytes.
+            Storage::disk('public')->put('agendas/documents/' . $fileName, $content);
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
@@ -229,7 +237,7 @@ class AgendaController extends Controller
             }
 
             $storeContent = $hasContentColumn && $fileSize > 0 && $fileSize <= $databaseContentMaxBytes;
-            $content = $storeContent ? file_get_contents($storedPath) : null;
+            $dbContent = $storeContent ? $content : null;
 
             $attributes = [
                 'nama_file'     => $fileName,
@@ -238,7 +246,7 @@ class AgendaController extends Controller
             ];
 
             if ($hasContentColumn) {
-                $attributes['content'] = $content;
+                $attributes['content'] = $dbContent;
             }
 
             if ($hasMimeColumn) {
