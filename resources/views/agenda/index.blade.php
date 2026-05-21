@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Agenda eGov - Diskominfo Sambas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -477,7 +478,19 @@
 }
 </style>
 
+<script src="/js/firebase-init.js" defer></script>
 <script>
+// Firebase Config - injected from server
+window.FIREBASE_CONFIG = {
+    apiKey: '{{ config("services.firebase.api_key", "") }}',
+    authDomain: '{{ config("services.firebase.auth_domain", "") }}',
+    projectId: '{{ config("services.firebase.project_id", "") }}',
+    storageBucket: '{{ config("services.firebase.storage_bucket", "") }}',
+    messagingSenderId: '{{ config("services.firebase.messaging_sender_id", "") }}',
+    appId: '{{ config("services.firebase.app_id", "") }}',
+};
+window.FIREBASE_VAPID_KEY = '{{ config("services.firebase.vapid_key", "") }}';
+
 const selectedAgendaIds = new Set();
 let selectedChannel = 'whatsapp';
 let fcmToken = null;
