@@ -16,7 +16,9 @@ mkdir -p storage/logs
 mkdir -p storage/framework/{cache/data,sessions,views}
 mkdir -p bootstrap/cache
 mkdir -p /tmp
-chmod -R 777 storage bootstrap/cache /tmp
+chmod -R 777 storage bootstrap/cache
+chmod 1777 /tmp
+export TMPDIR=/tmp
 
 # Generate app key if not set
 if [ -z "$APP_KEY" ]; then
