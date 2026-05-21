@@ -238,13 +238,6 @@ class AgendaController extends Controller
                 $extension = 'pdf';
             }
 
-            if ($extension === '') {
-                $mimeType = $file->getMimeType();
-                if ($mimeType === 'application/pdf') {
-                    $extension = 'pdf';
-                }
-            }
-
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
             $contentHash = hash('sha256', $content);
 
@@ -275,7 +268,7 @@ class AgendaController extends Controller
             }
 
             if ($hasMimeColumn) {
-                $attributes['mime_type'] = $file->getMimeType();
+                $attributes['mime_type'] = $this->detectMimeType($extension, $content);
             }
 
             if ($hasSizeColumn) {
@@ -303,7 +296,7 @@ class AgendaController extends Controller
                 ];
 
                 if ($hasMimeColumn) {
-                    $fallbackAttributes['mime_type'] = $file->getMimeType();
+                    $fallbackAttributes['mime_type'] = $this->detectMimeType($extension, $content);
                 }
 
                 if ($hasSizeColumn) {
@@ -327,6 +320,32 @@ class AgendaController extends Controller
         if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
         }
+    }
+
+    private function detectMimeType(string $extension, string $content): string
+    {
+        return match ($extension) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            default => $this->detectMimeFromContent($content) ?? 'application/octet-stream',
+        };
+    }
+
+    private function detectMimeFromContent(string $content): ?string
+    {
+        if (str_starts_with($content, '%PDF-')) {
+            return 'application/pdf';
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->buffer($content);
+
+        return is_string($mime) ? $mime : null;
     }
 
     private function filteredQuery(Request $request): Builder
