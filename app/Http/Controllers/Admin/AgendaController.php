@@ -189,8 +189,6 @@ class AgendaController extends Controller
             $originalName = $file->getClientOriginalName();
             $extension    = strtolower($file->getClientOriginalExtension() ?: pathinfo($originalName, PATHINFO_EXTENSION));
             $fileSize     = (int) $file->getSize();
-            $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
-
             \Log::info('Processing uploaded document', [
                 'name' => $originalName,
                 'extension' => $extension,
@@ -205,15 +203,6 @@ class AgendaController extends Controller
                     'error' => $file->getError(),
                     'message' => $file->getErrorMessage(),
                 ]);
-            }
-
-            if (! in_array(strtolower($extension), $allowedExtensions, true)) {
-                \Log::warning('Unsupported document extension', [
-                    'name' => $originalName,
-                    'extension' => $extension,
-                    'mime' => $extension,
-                ]);
-                continue;
             }
 
             $sourcePath = $file->getRealPath() ?: $file->getPathname();
@@ -236,6 +225,23 @@ class AgendaController extends Controller
 
             if ($extension === '' && str_starts_with($content, '%PDF-')) {
                 $extension = 'pdf';
+            }
+
+            if ($extension === '') {
+                $mimeType = $this->detectMimeFromContent($content);
+                if ($mimeType === 'application/pdf') {
+                    $extension = 'pdf';
+                } elseif ($mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                    $extension = 'docx';
+                } elseif ($mimeType === 'application/msword') {
+                    $extension = 'doc';
+                } elseif ($mimeType === 'image/jpeg') {
+                    $extension = 'jpg';
+                } elseif ($mimeType === 'image/png') {
+                    $extension = 'png';
+                } else {
+                    $extension = 'bin';
+                }
             }
 
             $fileName = date('YmdHis') . '_' . Str::random(10) . '.' . $extension;
