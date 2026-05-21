@@ -86,7 +86,15 @@ class AgendaController extends Controller
         ]);
 
         if ($request->hasFile('documents')) {
-            $this->uploadDocuments($agenda, $request->file('documents'));
+            try {
+                $this->uploadDocuments($agenda, $request->file('documents'));
+            } catch (\Throwable $e) {
+                \Log::error('Document upload failed', ['error' => $e->getMessage()]);
+                return redirect()->route('admin.agendas.show', $agenda)->with('toast', [
+                    'type'    => 'warning',
+                    'message' => 'Agenda ditambahkan, tapi upload dokumen gagal: ' . $e->getMessage(),
+                ]);
+            }
         }
 
         return redirect()->route('admin.agendas.show', $agenda)->with('toast', [
@@ -118,7 +126,15 @@ class AgendaController extends Controller
         $agenda->update($request->validated());
 
         if ($request->hasFile('documents')) {
-            $this->uploadDocuments($agenda, $request->file('documents'));
+            try {
+                $this->uploadDocuments($agenda, $request->file('documents'));
+            } catch (\Throwable $e) {
+                \Log::error('Document upload failed', ['error' => $e->getMessage()]);
+                return redirect()->route('admin.agendas.show', $agenda)->with('toast', [
+                    'type'    => 'warning',
+                    'message' => 'Agenda diperbarui, tapi upload dokumen gagal: ' . $e->getMessage(),
+                ]);
+            }
         }
 
         return redirect()->route('admin.agendas.show', $agenda)->with('toast', [
@@ -155,10 +171,27 @@ class AgendaController extends Controller
     private function uploadDocuments(Agenda $agenda, array $files): void
     {
         foreach ($files as $file) {
+            if (!$file->isValid()) {
+                continue;
+            }
+
             $originalName = $file->getClientOriginalName();
             $extension    = $file->getClientOriginalExtension();
-            $content      = file_get_contents($file->getRealPath());
-            $contentHash  = hash('sha256', $content);
+            
+            // Read file content safely
+            $filePath = $file->getRealPath();
+            if (!$filePath || !file_exists($filePath)) {
+                \Log::warning('Upload file not found', ['name' => $originalName]);
+                continue;
+            }
+
+            $content = file_get_contents($filePath);
+            if ($content === false) {
+                \Log::warning('Failed to read upload file', ['name' => $originalName]);
+                continue;
+            }
+
+            $contentHash = hash('sha256', $content);
 
             // Skip duplicate files only for THIS agenda
             if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
