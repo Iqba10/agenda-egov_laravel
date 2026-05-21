@@ -194,7 +194,7 @@ class AgendaController extends Controller
             \Log::info('Processing uploaded document', [
                 'name' => $originalName,
                 'extension' => $extension,
-                'mime' => $file->getMimeType(),
+                'mime' => $extension,
                 'size' => $fileSize,
                 'error' => $file->getError(),
             ]);
@@ -211,7 +211,7 @@ class AgendaController extends Controller
                 \Log::warning('Unsupported document extension', [
                     'name' => $originalName,
                     'extension' => $extension,
-                    'mime' => $file->getMimeType(),
+                    'mime' => $extension,
                 ]);
                 continue;
             }
