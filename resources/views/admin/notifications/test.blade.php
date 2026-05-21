@@ -160,6 +160,17 @@
 <script>
 const csrfToken = '{{ csrf_token() }}';
 
+// Firebase Config - injected from server
+window.FIREBASE_CONFIG = {
+    apiKey: '{{ config("services.firebase.api_key", env("VITE_FIREBASE_API_KEY", "")) }}',
+    authDomain: '{{ config("services.firebase.auth_domain", env("VITE_FIREBASE_AUTH_DOMAIN", "")) }}',
+    projectId: '{{ config("services.firebase.project_id", env("VITE_FIREBASE_PROJECT_ID", "")) }}',
+    storageBucket: '{{ config("services.firebase.storage_bucket", env("VITE_FIREBASE_STORAGE_BUCKET", "")) }}',
+    messagingSenderId: '{{ config("services.firebase.messaging_sender_id", env("VITE_FIREBASE_MESSAGING_SENDER_ID", "")) }}',
+    appId: '{{ config("services.firebase.app_id", env("VITE_FIREBASE_APP_ID", "")) }}',
+};
+window.FIREBASE_VAPID_KEY = '{{ config("services.firebase.vapid_key", env("VITE_FIREBASE_VAPID_KEY", "")) }}';
+
 // WhatsApp Test
 document.getElementById('waTestForm').addEventListener('submit', async (e) => {
     e.preventDefault();
