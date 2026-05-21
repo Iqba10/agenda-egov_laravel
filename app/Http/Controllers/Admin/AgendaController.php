@@ -160,8 +160,8 @@ class AgendaController extends Controller
             $content      = file_get_contents($file->getRealPath());
             $contentHash  = hash('sha256', $content);
 
-            // Skip duplicate files
-            if (AgendaDocument::query()->where('content_hash', $contentHash)->exists()) {
+            // Skip duplicate files only for THIS agenda
+            if ($agenda->documents()->where('content_hash', $contentHash)->exists()) {
                 continue;
             }
 
