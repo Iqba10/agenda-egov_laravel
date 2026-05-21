@@ -186,7 +186,11 @@ document.getElementById('waTestForm').addEventListener('submit', async (e) => {
         const data = await res.json();
         
         result.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'bg-red-50', 'text-red-600');
-        result.classList.add(data.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600');
+        if (data.success) {
+            result.classList.add('bg-emerald-50', 'text-emerald-700');
+        } else {
+            result.classList.add('bg-red-50', 'text-red-600');
+        }
         result.innerHTML = `<strong>${data.success ? 'Berhasil!' : 'Gagal!'}</strong> ${data.message}`;
     } catch (err) {
         result.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700');
@@ -226,7 +230,11 @@ document.getElementById('fcmTestForm').addEventListener('submit', async (e) => {
         const data = await res.json();
         
         result.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'bg-red-50', 'text-red-600');
-        result.classList.add(data.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600');
+        if (data.success) {
+            result.classList.add('bg-emerald-50', 'text-emerald-700');
+        } else {
+            result.classList.add('bg-red-50', 'text-red-600');
+        }
         result.innerHTML = `<strong>${data.success ? 'Berhasil!' : 'Gagal!'}</strong> ${data.message}`;
     } catch (err) {
         result.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700');
@@ -265,7 +273,11 @@ document.getElementById('broadcastForm').addEventListener('submit', async (e) =>
         const data = await res.json();
         
         result.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'bg-red-50', 'text-red-600');
-        result.classList.add(data.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600');
+        if (data.success) {
+            result.classList.add('bg-emerald-50', 'text-emerald-700');
+        } else {
+            result.classList.add('bg-red-50', 'text-red-600');
+        }
         result.innerHTML = `<strong>${data.success ? 'Berhasil!' : 'Gagal!'}</strong> ${data.message}`;
     } catch (err) {
         result.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700');
