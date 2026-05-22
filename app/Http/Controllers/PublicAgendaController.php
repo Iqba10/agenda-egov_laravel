@@ -14,6 +14,7 @@ class PublicAgendaController extends Controller
         $search = $request->string('search')->toString();
         $month = $request->string('month')->toString();
         $year = $request->string('year')->toString();
+        $now = now()->toDateTimeString();
 
         $baseQuery = Agenda::query();
 
@@ -38,20 +39,20 @@ class PublicAgendaController extends Controller
             ->selectRaw("
                 CASE
                     WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
-                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    WHEN ? < waktu_mulai THEN 'terjadwal'
+                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
                     ELSE 'selesai'
                 END as effective_status,
                 COUNT(*) as count
-            ")
+            ", [$now, $now])
             ->groupByRaw("
                 CASE
                     WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
-                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    WHEN ? < waktu_mulai THEN 'terjadwal'
+                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
                     ELSE 'selesai'
                 END
-            ")
+            ", [$now, $now])
             ->pluck('count', 'effective_status');
 
         $query = (clone $baseQuery)->status($status);

@@ -82,15 +82,17 @@ class Agenda extends Model
             return $query;
         }
 
-        // Filter by effective status based on timestamps
+        $now = now()->toDateTimeString();
+
+        // Filter by effective status based on timestamps using application timezone
         return $query->whereRaw("
             CASE
                 WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                WHEN NOW() < waktu_mulai THEN 'terjadwal'
-                WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                WHEN ? < waktu_mulai THEN 'terjadwal'
+                WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
                 ELSE 'selesai'
             END = ?
-        ", [$status]);
+        ", [$now, $now, $status]);
     }
 
     public function getEffectiveStatusAttribute(): string

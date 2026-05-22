@@ -23,26 +23,27 @@ class AgendaController extends Controller
     {
         $status      = $request->string('status')->toString();
         $base        = $this->filteredQuery($request);
+        $now         = now()->toDateTimeString();
         
-        // Calculate effective status counts based on timestamps
+        // Calculate effective status counts based on application timezone
         $statsCounts = (clone $base)
             ->selectRaw("
                 CASE
                     WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
-                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    WHEN ? < waktu_mulai THEN 'terjadwal'
+                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
                     ELSE 'selesai'
                 END as effective_status,
                 COUNT(*) as count
-            ")
+            ", [$now, $now])
             ->groupByRaw("
                 CASE
                     WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN NOW() < waktu_mulai THEN 'terjadwal'
-                    WHEN NOW() BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
+                    WHEN ? < waktu_mulai THEN 'terjadwal'
+                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
                     ELSE 'selesai'
                 END
-            ")
+            ", [$now, $now])
             ->pluck('count', 'effective_status');
 
         return view('admin.agendas.index', [

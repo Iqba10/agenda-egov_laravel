@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+Schedule::command('agenda:sync-statuses')->everyMinute();
 Schedule::command('agenda:send-reminders')->everyMinute();
 
 Artisan::command('legacy:import {--path=} {--uploads=} {--fresh}', function () {
