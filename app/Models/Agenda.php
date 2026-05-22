@@ -57,6 +57,12 @@ class Agenda extends Model
                 
                 $agenda->slug = $slug;
             }
+
+            // Keep persisted status in sync with agenda timestamps.
+            // "dibatalkan" stays manual; other states follow schedule automatically.
+            if ($agenda->status !== 'dibatalkan') {
+                $agenda->status = $agenda->computedStatus();
+            }
         });
     }
 
@@ -88,6 +94,11 @@ class Agenda extends Model
     }
 
     public function getEffectiveStatusAttribute(): string
+    {
+        return $this->computedStatus();
+    }
+
+    public function computedStatus(): string
     {
         if ($this->status === 'dibatalkan') {
             return 'dibatalkan';
