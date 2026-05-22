@@ -27,8 +27,8 @@ class SendAgendaReminders extends Command
         $agendas1h = Agenda::query()
             ->where('status', '!=', 'dibatalkan')
             ->whereBetween('waktu_mulai', [
-                $now->copy()->addMinutes(59),
-                $now->copy()->addMinutes(61),
+                $now->copy()->addHour()->subMinute(),
+                $now->copy()->addHour()->addMinute(),
             ])
             ->get();
 
