@@ -416,31 +416,67 @@
                 </div>
             </div>
 
-            {{-- WhatsApp Input --}}
-            <div id="waInputSection" class="px-4 pb-3 shrink-0">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Nomor WhatsApp</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-medium">+62</span>
-                    <input id="notifPhone" type="tel" placeholder="812-3456-7890" autocomplete="tel"
-                           class="w-full pl-12 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder-slate-400 text-slate-800">
+            {{-- Input Section Container - switches between single column and grid for "both" --}}
+            <div id="inputSectionContainer" class="px-4 pb-3 shrink-0">
+                {{-- Single mode: WhatsApp only --}}
+                <div id="waInputSection">
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Nomor WhatsApp</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-medium">+62</span>
+                        <input id="notifPhone" type="tel" placeholder="812-3456-7890" autocomplete="tel"
+                               class="w-full pl-12 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder-slate-400 text-slate-800">
+                    </div>
                 </div>
-            </div>
 
-            {{-- FCM Permission --}}
-            <div id="fcmSection" class="px-4 pb-3 shrink-0 hidden">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Notifikasi Browser</label>
-                <div id="fcmPermissionBox" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50">
-                    <div id="fcmStatusIcon" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
-                        <i data-lucide="bell-off" class="h-4 w-4"></i>
+                {{-- Single mode: FCM only --}}
+                <div id="fcmSection" class="hidden">
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Notifikasi Browser</label>
+                    <div id="fcmPermissionBox" class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+                        <div id="fcmStatusIcon" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
+                            <i data-lucide="bell-off" class="h-3.5 w-3.5"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p id="fcmStatusText" class="text-xs font-semibold text-slate-700 leading-tight">Notifikasi belum diizinkan</p>
+                            <p id="fcmStatusDesc" class="text-[10px] text-slate-500">Klik tombol untuk mengizinkan</p>
+                        </div>
+                        <button type="button" onclick="requestFcmPermission()" id="fcmPermitBtn"
+                                class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold rounded-lg transition-colors whitespace-nowrap">
+                            Izinkan
+                        </button>
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <p id="fcmStatusText" class="text-xs font-semibold text-slate-700">Notifikasi belum diizinkan</p>
-                        <p id="fcmStatusDesc" class="text-[10px] text-slate-500 mt-0.5">Klik tombol untuk mengizinkan</p>
+                </div>
+
+                {{-- Combined mode: Grid layout for both WA + FCM --}}
+                <div id="bothSection" class="hidden">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {{-- WhatsApp Column --}}
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5 flex items-center gap-1">
+                                <i data-lucide="message-circle" class="h-3 w-3"></i> WhatsApp
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-xs font-medium">+62</span>
+                                <input id="notifPhoneBoth" type="tel" placeholder="812-3456-7890" autocomplete="tel"
+                                       class="w-full pl-10 pr-2.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder-slate-400 text-slate-800">
+                            </div>
+                        </div>
+                        {{-- FCM Column --}}
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-1.5 flex items-center gap-1">
+                                <i data-lucide="bell" class="h-3 w-3"></i> Notif Browser
+                            </label>
+                            <div id="fcmPermissionBoxBoth" class="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-slate-50 h-[38px]">
+                                <div id="fcmStatusIconBoth" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-500">
+                                    <i data-lucide="bell-off" class="h-3 w-3"></i>
+                                </div>
+                                <p id="fcmStatusTextBoth" class="text-[11px] font-medium text-slate-600 flex-1 truncate">Belum diizinkan</p>
+                                <button type="button" onclick="requestFcmPermission()" id="fcmPermitBtnBoth"
+                                        class="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded transition-colors">
+                                    Izinkan
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <button type="button" onclick="requestFcmPermission()" id="fcmPermitBtn"
-                            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
-                        Izinkan
-                    </button>
                 </div>
             </div>
 
@@ -588,20 +624,24 @@ function setChannel(channel) {
         }
     });
     
-    // Show/hide input sections
+    // Show/hide input sections - 3 mutually exclusive views
     const waSection = document.getElementById('waInputSection');
     const fcmSection = document.getElementById('fcmSection');
+    const bothSection = document.getElementById('bothSection');
     
     if (channel === 'whatsapp') {
         waSection.classList.remove('hidden');
         fcmSection.classList.add('hidden');
+        bothSection.classList.add('hidden');
     } else if (channel === 'fcm') {
         waSection.classList.add('hidden');
         fcmSection.classList.remove('hidden');
+        bothSection.classList.add('hidden');
         checkFcmPermission();
-    } else { // both
-        waSection.classList.remove('hidden');
-        fcmSection.classList.remove('hidden');
+    } else { // both - compact grid layout
+        waSection.classList.add('hidden');
+        fcmSection.classList.add('hidden');
+        bothSection.classList.remove('hidden');
         checkFcmPermission();
     }
     
@@ -609,40 +649,70 @@ function setChannel(channel) {
 }
 
 function checkFcmPermission() {
+    // Single mode elements
     const statusIcon = document.getElementById('fcmStatusIcon');
     const statusText = document.getElementById('fcmStatusText');
     const statusDesc = document.getElementById('fcmStatusDesc');
     const permitBtn = document.getElementById('fcmPermitBtn');
     
+    // Both mode elements (compact version)
+    const statusIconBoth = document.getElementById('fcmStatusIconBoth');
+    const statusTextBoth = document.getElementById('fcmStatusTextBoth');
+    const permitBtnBoth = document.getElementById('fcmPermitBtnBoth');
+    
     if (!('Notification' in window)) {
-        statusIcon.innerHTML = '<i data-lucide="alert-circle" class="h-4 w-4"></i>';
-        statusIcon.className = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600';
+        // Single mode
+        statusIcon.innerHTML = '<i data-lucide="alert-circle" class="h-3.5 w-3.5"></i>';
+        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600';
         statusText.textContent = 'Browser tidak mendukung';
         statusDesc.textContent = 'Gunakan browser modern seperti Chrome atau Firefox';
         permitBtn.classList.add('hidden');
+        // Both mode
+        statusIconBoth.innerHTML = '<i data-lucide="alert-circle" class="h-3 w-3"></i>';
+        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-600';
+        statusTextBoth.textContent = 'Tidak didukung';
+        permitBtnBoth.classList.add('hidden');
         return;
     }
     
     const permission = Notification.permission;
     
     if (permission === 'granted' && fcmToken) {
-        statusIcon.innerHTML = '<i data-lucide="check-circle" class="h-4 w-4"></i>';
-        statusIcon.className = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600';
+        // Single mode
+        statusIcon.innerHTML = '<i data-lucide="check-circle" class="h-3.5 w-3.5"></i>';
+        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600';
         statusText.textContent = 'Notifikasi diizinkan';
         statusDesc.textContent = 'Anda akan menerima notifikasi di browser ini';
         permitBtn.classList.add('hidden');
+        // Both mode
+        statusIconBoth.innerHTML = '<i data-lucide="check-circle" class="h-3 w-3"></i>';
+        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-600';
+        statusTextBoth.textContent = 'Diizinkan';
+        permitBtnBoth.classList.add('hidden');
     } else if (permission === 'denied') {
-        statusIcon.innerHTML = '<i data-lucide="x-circle" class="h-4 w-4"></i>';
-        statusIcon.className = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600';
+        // Single mode
+        statusIcon.innerHTML = '<i data-lucide="x-circle" class="h-3.5 w-3.5"></i>';
+        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600';
         statusText.textContent = 'Notifikasi diblokir';
         statusDesc.textContent = 'Ubah di pengaturan browser Anda';
         permitBtn.classList.add('hidden');
+        // Both mode
+        statusIconBoth.innerHTML = '<i data-lucide="x-circle" class="h-3 w-3"></i>';
+        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-600';
+        statusTextBoth.textContent = 'Diblokir';
+        permitBtnBoth.classList.add('hidden');
     } else {
-        statusIcon.innerHTML = '<i data-lucide="bell-off" class="h-4 w-4"></i>';
-        statusIcon.className = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500';
+        // Single mode
+        statusIcon.innerHTML = '<i data-lucide="bell-off" class="h-3.5 w-3.5"></i>';
+        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500';
         statusText.textContent = 'Notifikasi belum diizinkan';
         statusDesc.textContent = 'Klik tombol untuk mengizinkan';
         permitBtn.classList.remove('hidden');
+        // Both mode
+        statusIconBoth.innerHTML = '<i data-lucide="bell-off" class="h-3 w-3"></i>';
+        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-500';
+        statusTextBoth.textContent = 'Belum diizinkan';
+        permitBtnBoth.classList.remove('hidden');
     }
     
     lucide.createIcons();
@@ -650,8 +720,13 @@ function checkFcmPermission() {
 
 async function requestFcmPermission() {
     const permitBtn = document.getElementById('fcmPermitBtn');
+    const permitBtnBoth = document.getElementById('fcmPermitBtnBoth');
+    
+    // Disable both buttons
     permitBtn.disabled = true;
     permitBtn.textContent = 'Memproses...';
+    permitBtnBoth.disabled = true;
+    permitBtnBoth.textContent = '...';
     
     try {
         const permission = await Notification.requestPermission();
@@ -674,6 +749,8 @@ async function requestFcmPermission() {
     } finally {
         permitBtn.disabled = false;
         permitBtn.textContent = 'Izinkan';
+        permitBtnBoth.disabled = false;
+        permitBtnBoth.textContent = 'Izinkan';
     }
 }
 
@@ -756,6 +833,7 @@ function normalizePhone(phone) {
 async function submitNotifSubscribe() {
     const btn = document.getElementById('notifSubmit');
     const phoneInput = document.getElementById('notifPhone');
+    const phoneInputBoth = document.getElementById('notifPhoneBoth');
     
     // Validation
     if (selectedAgendaIds.size === 0) {
@@ -768,7 +846,11 @@ async function submitNotifSubscribe() {
     
     let phone = null;
     if (needsPhone) {
-        phone = normalizePhone(phoneInput.value.trim());
+        // Get phone from the correct input based on channel
+        const rawPhone = selectedChannel === 'both' 
+            ? phoneInputBoth.value.trim() 
+            : phoneInput.value.trim();
+        phone = normalizePhone(rawPhone);
         if (phone.length < 10) {
             showFormMsg('Masukkan nomor WhatsApp yang valid.', false);
             return;
@@ -821,6 +903,7 @@ async function submitNotifSubscribe() {
             showFormMsg(data.message || 'Berhasil! Anda akan menerima pengingat.', true);
             selectedAgendaIds.clear();
             phoneInput.value = '';
+            phoneInputBoth.value = '';
             updateSelectedCount();
             loadAgendas('');
         } else {
