@@ -60,14 +60,28 @@ class AgendaController extends Controller
     public function print(Request $request): View
     {
         $status = $request->string('status')->toString();
+        $startDate = $request->string('start_date')->toString();
+        $endDate = $request->string('end_date')->toString();
+
+        $query = $this->filteredQuery($request);
+
+        // Filter by date range
+        if ($startDate) {
+            $query->whereDate('waktu_mulai', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('waktu_mulai', '<=', $endDate);
+        }
 
         return view('admin.agendas.print', [
-            'agendas' => $this->filteredQuery($request)->status($status)->latest('waktu_mulai')->get(),
+            'agendas' => $query->status($status)->latest('waktu_mulai')->get(),
             'filters' => [
-                'status' => $status,
-                'search' => $request->string('search')->toString(),
-                'month'  => $request->string('month')->toString(),
-                'year'   => $request->string('year')->toString(),
+                'status'     => $status,
+                'search'     => $request->string('search')->toString(),
+                'month'      => $request->string('month')->toString(),
+                'year'       => $request->string('year')->toString(),
+                'start_date' => $startDate,
+                'end_date'   => $endDate,
             ],
         ]);
     }
