@@ -20,64 +20,70 @@ Route::get('/api/notify/status', [NotificationController::class, 'status'])->nam
 
 // Temporary debug endpoint - hapus setelah debugging selesai
 Route::get('/api/debug/reminders', function () {
-    $now = now();
-    
-    // Service status
-    $fonnte = app(\App\Services\FonnteSender::class);
-    $fcm = app(\App\Services\FcmSender::class);
-    
-    // Upcoming agendas
-    $upcomingAgendas = \App\Models\Agenda::query()
-        ->where('status', '!=', 'dibatalkan')
-        ->where('waktu_mulai', '>', $now)
-        ->orderBy('waktu_mulai')
-        ->limit(5)
-        ->get(['id', 'perihal_kegiatan', 'waktu_mulai', 'reminder_sent_at']);
-    
-    // Subscribers
-    $subscribers = \App\Models\NotifikasiPendaftar::with('agenda:id,perihal_kegiatan,waktu_mulai')
-        ->orderByDesc('created_at')
-        ->limit(10)
-        ->get();
-    
-    // FCM tokens
-    $fcmTokens = \App\Models\FcmToken::active()
-        ->orderByDesc('created_at')
-        ->limit(10)
-        ->get(['id', 'device_name', 'subscribed_agendas', 'is_active', 'created_at']);
-    
-    return response()->json([
-        'server_time' => $now->format('Y-m-d H:i:s'),
-        'timezone' => config('app.timezone'),
-        'services' => [
-            'whatsapp_configured' => $fonnte->isConfigured(),
-            'fcm_configured' => $fcm->isConfigured(),
-        ],
-        'upcoming_agendas' => $upcomingAgendas->map(fn($a) => [
-            'id' => $a->id,
-            'perihal' => $a->perihal_kegiatan,
-            'waktu_mulai' => $a->waktu_mulai?->format('Y-m-d H:i:s'),
-            'minutes_until' => $now->diffInMinutes($a->waktu_mulai, false),
-            'reminder_sent' => $a->reminder_sent_at?->format('Y-m-d H:i:s'),
-        ]),
-        'subscribers' => $subscribers->map(fn($s) => [
-            'id' => $s->id,
-            'agenda_id' => $s->agenda_id,
-            'agenda' => $s->agenda?->perihal_kegiatan,
-            'phone' => $s->phone_number ? substr($s->phone_number, 0, 6) . '***' : null,
-            'channel' => $s->channel_preference,
-            'wa_sent' => $s->whatsapp_sent,
-            'fcm_sent' => $s->fcm_sent,
-            'created' => $s->created_at?->format('Y-m-d H:i:s'),
-        ]),
-        'fcm_tokens' => $fcmTokens->map(fn($t) => [
-            'id' => $t->id,
-            'device' => $t->device_name,
-            'subscribed_agendas' => $t->subscribed_agendas,
-            'active' => $t->is_active,
-            'created' => $t->created_at?->format('Y-m-d H:i:s'),
-        ]),
-    ]);
+    try {
+        $now = now();
+        
+        // Upcoming agendas
+        $upcomingAgendas = \App\Models\Agenda::query()
+            ->where('status', '!=', 'dibatalkan')
+            ->where('waktu_mulai', '>', $now)
+            ->orderBy('waktu_mulai')
+            ->limit(5)
+            ->get();
+        
+        // Subscribers
+        $subscribers = \App\Models\NotifikasiPendaftar::orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+        
+        // FCM tokens
+        $fcmTokens = \App\Models\FcmToken::orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+        
+        return response()->json([
+            'server_time' => $now->format('Y-m-d H:i:s'),
+            'timezone' => config('app.timezone'),
+            'upcoming_agendas_count' => $upcomingAgendas->count(),
+            'upcoming_agendas' => $upcomingAgendas->map(function($a) use ($now) {
+                return [
+                    'id' => $a->id,
+                    'perihal' => $a->perihal_kegiatan,
+                    'waktu_mulai' => optional($a->waktu_mulai)->format('Y-m-d H:i:s'),
+                    'minutes_until' => $a->waktu_mulai ? $now->diffInMinutes($a->waktu_mulai, false) : null,
+                    'reminder_sent' => optional($a->reminder_sent_at)->format('Y-m-d H:i:s'),
+                ];
+            }),
+            'subscribers_count' => $subscribers->count(),
+            'subscribers' => $subscribers->map(function($s) {
+                return [
+                    'id' => $s->id,
+                    'agenda_id' => $s->agenda_id,
+                    'phone' => $s->phone_number ? substr($s->phone_number, 0, 6) . '***' : null,
+                    'channel' => $s->channel_preference,
+                    'wa_sent' => $s->whatsapp_sent,
+                    'fcm_sent' => $s->fcm_sent,
+                    'created' => optional($s->created_at)->format('Y-m-d H:i:s'),
+                ];
+            }),
+            'fcm_tokens_count' => $fcmTokens->count(),
+            'fcm_tokens' => $fcmTokens->map(function($t) {
+                return [
+                    'id' => $t->id,
+                    'device' => $t->device_name,
+                    'subscribed_agendas' => $t->subscribed_agendas,
+                    'active' => $t->is_active,
+                    'created' => optional($t->created_at)->format('Y-m-d H:i:s'),
+                ];
+            }),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ], 500);
+    }
 });
 Route::post('/api/fcm/register', [NotificationController::class, 'registerFcmToken'])->name('fcm.register')->middleware('throttle:30,1');
 Route::post('/notify/subscribe', [NotificationController::class, 'subscribe'])->name('notify.subscribe')->middleware('throttle:10,5');
