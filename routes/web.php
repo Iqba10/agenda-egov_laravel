@@ -19,15 +19,30 @@ Route::get('/api/agenda-search', [NotificationController::class, 'search'])->nam
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
 
 // Temporary debug endpoint - hapus setelah debugging selesai
-Route::post('/api/debug/test-subscribe', function (\Illuminate\Http\Request $request) {
-    return response()->json([
-        'received' => true,
-        'raw_input' => $request->all(),
-        'agenda_ids' => $request->input('agenda_ids'),
-        'channel' => $request->input('channel'),
-        'has_phone' => !empty($request->input('phone_number')),
-        'has_fcm' => !empty($request->input('fcm_token')),
-    ]);
+Route::get('/api/debug/test-insert/{agendaId}', function ($agendaId) {
+    try {
+        // Test insert langsung ke database
+        $subscriber = \App\Models\NotifikasiPendaftar::create([
+            'agenda_id' => $agendaId,
+            'phone_number' => '628123456789',
+            'channel_preference' => 'both',
+            'nama' => 'Test Debug',
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'subscriber_id' => $subscriber->id,
+            'subscriber' => $subscriber->toArray(),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'code' => $e->getCode(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ], 500);
+    }
 });
 
 Route::get('/api/debug/reminders', function () {
