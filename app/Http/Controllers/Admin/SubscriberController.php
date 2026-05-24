@@ -79,31 +79,55 @@ class SubscriberController extends Controller
     public function resend(NotifikasiPendaftar $subscriber): JsonResponse
     {
         try {
+            \Log::info('Resend requested', ['subscriber_id' => $subscriber->id]);
+            
             // Reset sent flags
             $subscriber->update([
                 'whatsapp_sent' => false,
                 'fcm_sent' => false,
             ]);
+            
+            // Reload to get fresh data
+            $subscriber->refresh();
+            $subscriber->load('agenda');
 
             // Get reminder type
             $reminderMinutes = $subscriber->reminder_minutes ?? 60;
             $type = $this->getReminderType($reminderMinutes);
+            
+            \Log::info('Calling sendToSubscriber', [
+                'subscriber_id' => $subscriber->id,
+                'agenda_id' => $subscriber->agenda_id,
+                'phone' => $subscriber->phone_number,
+                'channel' => $subscriber->channel_preference,
+                'type' => $type,
+            ]);
 
             // Send immediately
             $success = $this->reminderService->sendToSubscriber($subscriber, $type);
+            
+            \Log::info('sendToSubscriber result', ['success' => $success]);
+
+            // Reload to check status
+            $subscriber->refresh();
 
             if ($success) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Notifikasi berhasil dikirim ulang!',
+                    'wa_sent' => $subscriber->whatsapp_sent,
+                    'fcm_sent' => $subscriber->fcm_sent,
                 ]);
             }
 
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengirim notifikasi. Cek konfigurasi service.',
+                'message' => 'Gagal mengirim. WA: ' . ($subscriber->whatsapp_sent ? 'OK' : 'FAIL') . ', FCM: ' . ($subscriber->fcm_sent ? 'OK' : 'FAIL'),
+                'wa_sent' => $subscriber->whatsapp_sent,
+                'fcm_sent' => $subscriber->fcm_sent,
             ], 422);
         } catch (\Throwable $e) {
+            \Log::error('Resend error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage(),
