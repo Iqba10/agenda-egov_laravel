@@ -22,33 +22,62 @@ class AgendaReminderService
     {
         $agenda = $subscriber->agenda;
         $success = false;
+        
+        \Log::info('sendToSubscriber() START', [
+            'subscriber_id' => $subscriber->id,
+            'agenda_id' => $agenda?->id,
+            'channel' => $subscriber->channel_preference,
+            'phone' => $subscriber->phone_number,
+            'type' => $type,
+        ]);
 
         // Kirim via WhatsApp jika diperlukan
-        if (in_array($subscriber->channel_preference, ['whatsapp', 'both']) && !$subscriber->whatsapp_sent) {
-            if ($subscriber->phone_number && $this->fonnte->sendAgendaReminder($subscriber->phone_number, $agenda, $type)) {
-                $subscriber->markWhatsappSent();
-                $success = true;
+        if (in_array($subscriber->channel_preference, ['whatsapp', 'both'])) {
+            \Log::info('Attempting WhatsApp send', ['phone' => $subscriber->phone_number]);
+            
+            if ($subscriber->phone_number) {
+                $waResult = $this->fonnte->sendAgendaReminder($subscriber->phone_number, $agenda, $type);
+                \Log::info('WhatsApp result', ['success' => $waResult]);
+                
+                if ($waResult) {
+                    $subscriber->markWhatsappSent();
+                    $success = true;
+                }
+            } else {
+                \Log::warning('No phone number for WhatsApp');
             }
         }
 
         // Kirim via FCM jika diperlukan
-        if (in_array($subscriber->channel_preference, ['fcm', 'both']) && !$subscriber->fcm_sent) {
-            // Cari FCM token yang subscribe ke agenda ini
+        if (in_array($subscriber->channel_preference, ['fcm', 'both'])) {
+            \Log::info('Attempting FCM send', ['agenda_id' => $agenda->id]);
+            
+            // Cari FCM token yang subscribe ke agenda ini (coba kedua format int dan string)
             $fcmTokens = FcmToken::active()
-                ->whereJsonContains('subscribed_agendas', $agenda->id)
+                ->where(function ($q) use ($agenda) {
+                    $q->whereJsonContains('subscribed_agendas', $agenda->id)
+                      ->orWhereJsonContains('subscribed_agendas', (string) $agenda->id);
+                })
                 ->pluck('token')
                 ->toArray();
+            
+            \Log::info('FCM tokens found', ['count' => count($fcmTokens)]);
 
+            $fcmSuccess = false;
             foreach ($fcmTokens as $token) {
+                \Log::info('Sending to FCM token', ['token_prefix' => substr($token, 0, 20)]);
                 if ($this->fcm->sendAgendaReminder($token, $agenda, $type)) {
-                    $success = true;
+                    $fcmSuccess = true;
                 }
             }
 
-            if ($success) {
+            if ($fcmSuccess) {
                 $subscriber->markFcmSent();
+                $success = true;
             }
         }
+        
+        \Log::info('sendToSubscriber() END', ['success' => $success]);
 
         return $success;
     }
