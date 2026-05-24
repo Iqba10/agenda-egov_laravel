@@ -19,6 +19,24 @@ Route::get('/api/agenda-search', [NotificationController::class, 'search'])->nam
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
 
 // Temporary debug endpoint - hapus setelah debugging selesai
+// Jalankan migration manual
+Route::get('/api/debug/run-migrate', function () {
+    try {
+        \Artisan::call('migrate', ['--force' => true]);
+        $output = \Artisan::output();
+        
+        return response()->json([
+            'success' => true,
+            'output' => $output,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+});
+
 // Trigger scheduler manual untuk test
 Route::get('/api/debug/run-scheduler', function () {
     try {
