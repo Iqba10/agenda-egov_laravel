@@ -3,10 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Models\Agenda;
+use App\Models\AgendaReminder;
 use App\Models\NotifikasiPendaftar;
 use App\Services\AgendaReminderService;
 use App\Services\FcmSender;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class SendAgendaReminders extends Command
 {
@@ -18,41 +20,79 @@ class SendAgendaReminders extends Command
         $now  = now();
         $sent = 0;
 
-        $this->info('Memulai pengiriman pengingat agenda...');
+        $this->info('===========================================');
+        $this->info('  AGENDA REMINDER SCHEDULER');
+        $this->info('===========================================');
         $this->info("Waktu server: {$now->format('Y-m-d H:i:s')} WIB");
         $this->newLine();
 
-        // Kirim pengingat 1 jam sebelumnya (window 50-70 menit untuk toleransi)
-        $this->info('⏱️ Cek pengingat 1 jam...');
-
-        // Window diperlebar: 50-70 menit dari sekarang
-        // Ini memberikan toleransi 20 menit jika scheduler delay
-        $windowStart = $now->copy()->addMinutes(50);
-        $windowEnd = $now->copy()->addMinutes(70);
+        // Kirim pengingat untuk agenda yang dimulai dalam 30-90 menit
+        // Window lebar untuk memastikan tidak terlewat
+        $windowStart = $now->copy()->addMinutes(30);
+        $windowEnd = $now->copy()->addMinutes(90);
         
-        $this->info("   Window: {$windowStart->format('H:i')} - {$windowEnd->format('H:i')}");
+        $this->info("Window pengiriman: {$windowStart->format('H:i')} - {$windowEnd->format('H:i')}");
+        $this->info("(Agenda yang mulai dalam 30-90 menit dari sekarang)");
+        $this->newLine();
 
-        $agendas1h = Agenda::query()
+        // Cari agenda yang belum dikirim reminder
+        $agendas = Agenda::query()
             ->where('status', '!=', 'dibatalkan')
             ->whereBetween('waktu_mulai', [$windowStart, $windowEnd])
+            ->whereNull('reminder_sent_at') // Belum pernah kirim reminder
             ->get();
 
-        $this->info("   Agenda ditemukan: {$agendas1h->count()}");
+        $this->info("Agenda dalam window: {$agendas->count()}");
 
-        foreach ($agendas1h as $agenda) {
-            $this->line("   → Proses: {$agenda->perihal_kegiatan} ({$agenda->waktu_mulai->format('H:i')})");
+        if ($agendas->isEmpty()) {
+            $this->info("Tidak ada agenda yang perlu dikirim reminder.");
+            
+            // Log untuk debugging
+            $allUpcoming = Agenda::query()
+                ->where('status', '!=', 'dibatalkan')
+                ->where('waktu_mulai', '>', $now)
+                ->whereNull('reminder_sent_at')
+                ->orderBy('waktu_mulai')
+                ->limit(5)
+                ->get(['id', 'perihal_kegiatan', 'waktu_mulai']);
+            
+            if ($allUpcoming->isNotEmpty()) {
+                $this->newLine();
+                $this->info("Agenda mendatang yang belum dikirim reminder:");
+                foreach ($allUpcoming as $a) {
+                    $diff = $now->diffInMinutes($a->waktu_mulai);
+                    $this->line("  - {$a->perihal_kegiatan} ({$a->waktu_mulai->format('H:i')}) - dalam {$diff} menit");
+                }
+            }
+        }
+
+        foreach ($agendas as $agenda) {
+            $this->newLine();
+            $this->line("→ Proses: {$agenda->perihal_kegiatan}");
+            $this->line("  Waktu mulai: {$agenda->waktu_mulai->format('d/m/Y H:i')} WIB");
+            
             $count = $this->sendRemindersForAgenda($agenda, '1h', $service, $fcm);
             $sent += $count;
 
+            // Tandai agenda sudah dikirim reminder
+            $agenda->update(['reminder_sent_at' => now()]);
+
             if ($count > 0) {
-                $this->line("     ✓ Terkirim: {$count} notifikasi");
+                $this->info("  ✓ Terkirim: {$count} notifikasi");
+                Log::info("Reminder sent for agenda", [
+                    'agenda_id' => $agenda->id,
+                    'agenda' => $agenda->perihal_kegiatan,
+                    'count' => $count,
+                ]);
             } else {
-                $this->line("     ⚠ Tidak ada subscriber atau sudah dikirim");
+                $this->warn("  ⚠ Tidak ada subscriber untuk agenda ini");
             }
         }
 
         $this->newLine();
-        $this->info("✅ Selesai. Total pengingat terkirim: {$sent}");
+        $this->info("===========================================");
+        $this->info("Total pengingat terkirim: {$sent}");
+        $this->info("===========================================");
 
         return self::SUCCESS;
     }
@@ -65,7 +105,7 @@ class SendAgendaReminders extends Command
     ): int {
         $count = 0;
 
-        // Kirim ke subscriber yang belum dikirim
+        // Kirim ke subscriber WhatsApp yang belum dikirim
         $subscribers = NotifikasiPendaftar::where('agenda_id', $agenda->id)
             ->where('status', '!=', 'failed')
             ->where(function ($q) {
@@ -74,7 +114,10 @@ class SendAgendaReminders extends Command
             })
             ->get();
 
+        $this->line("  Subscribers ditemukan: {$subscribers->count()}");
+
         foreach ($subscribers as $subscriber) {
+            $this->line("    - {$subscriber->phone_number} ({$subscriber->channel_preference})");
             if ($service->sendToSubscriber($subscriber, $type)) {
                 $count++;
             }
@@ -82,6 +125,9 @@ class SendAgendaReminders extends Command
 
         // Kirim FCM ke semua token yang subscribe agenda ini
         $fcmCount = $fcm->sendToAgendaSubscribers($agenda, $type);
+        if ($fcmCount > 0) {
+            $this->line("  FCM tokens terkirim: {$fcmCount}");
+        }
         $count += $fcmCount;
 
         return $count;

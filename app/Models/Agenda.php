@@ -26,6 +26,7 @@ class Agenda extends Model
         'keterangan',
         'diinput_oleh',
         'created_by',
+        'reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -34,6 +35,7 @@ class Agenda extends Model
             'tanggal_surat' => 'date',
             'waktu_mulai' => 'datetime',
             'waktu_selesai' => 'datetime',
+            'reminder_sent_at' => 'datetime',
         ];
     }
 
