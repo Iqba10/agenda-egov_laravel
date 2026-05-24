@@ -221,8 +221,7 @@ class AgendaReminderService
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                // Re-throw untuk debugging
-                throw $e;
+                // Don't re-throw, continue with other agendas
             }
         }
 
