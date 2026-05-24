@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AgendaController as AdminAgendaController;
 use App\Http\Controllers\Admin\NotificationTestController;
+use App\Http\Controllers\Admin\SubscriberController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\NotificationController;
@@ -50,6 +51,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     // Admin-only: Debug reminder status
     Route::get('/notifications/debug', [NotificationTestController::class, 'debugReminders'])->name('notifications.debug');
     Route::post('/notifications/run-scheduler', [NotificationTestController::class, 'runScheduler'])->name('notifications.run-scheduler');
+
+    // Subscribers Management
+    Route::get('/subscribers', [SubscriberController::class, 'index'])->name('subscribers.index');
+    Route::post('/subscribers/{subscriber}/resend', [SubscriberController::class, 'resend'])->name('subscribers.resend');
+    Route::delete('/subscribers/{subscriber}', [SubscriberController::class, 'destroy'])->name('subscribers.destroy');
+    Route::post('/subscribers/bulk-resend', [SubscriberController::class, 'bulkResend'])->name('subscribers.bulk-resend');
+    Route::delete('/fcm-tokens/{fcmToken}', [SubscriberController::class, 'destroyFcmToken'])->name('fcm-tokens.destroy');
 });
 
 require __DIR__.'/auth.php';
