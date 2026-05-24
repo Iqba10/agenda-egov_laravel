@@ -55,14 +55,21 @@ Route::get('/api/debug/run-scheduler', function () {
     }
 });
 
-Route::get('/api/debug/test-insert/{agendaId}', function ($agendaId) {
+Route::get('/api/debug/test-insert/{agendaId}', function ($agendaId, \Illuminate\Http\Request $request) {
     try {
+        $phone = $request->query('phone', '628123456789');
+        // Normalize phone
+        $phone = preg_replace('/[^0-9]/', '', $phone);
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
+        }
+        
         // Test insert langsung ke database
         $subscriber = \App\Models\NotifikasiPendaftar::create([
             'agenda_id' => $agendaId,
-            'phone_number' => '628123456789',
+            'phone_number' => $phone,
             'channel_preference' => 'both',
-            'nama' => 'Test Debug',
+            'nama' => 'Test User',
         ]);
         
         return response()->json([
