@@ -36,8 +36,9 @@ php artisan tinker --execute="try { DB::connection()->getPdo(); echo 'Database O
 echo "[4/7] Running database migrations..."
 php artisan migrate --force --no-interaction 2>&1 || echo "Migration warning (may be OK if tables exist)"
 
-# Cache configuration for production
-echo "[5/7] Caching configuration..."
+# Clear old cache first, then rebuild
+echo "[5/7] Clearing and rebuilding cache..."
+php artisan optimize:clear --no-interaction 2>&1 || echo "Cache clear warning"
 php artisan config:cache --no-interaction 2>&1 || echo "Config cache warning"
 php artisan route:cache --no-interaction 2>&1 || echo "Route cache warning"
 php artisan view:cache --no-interaction 2>&1 || echo "View cache warning"
