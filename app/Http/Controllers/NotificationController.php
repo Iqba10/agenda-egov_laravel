@@ -87,10 +87,19 @@ class NotificationController extends Controller
         }
 
         try {
-            \Log::info('NotificationController@subscribe - START', [
+            \Log::info('NotificationController@subscribe - RAW REQUEST', [
+                'all_input' => $request->all(),
                 'validated_data' => $data,
                 'channel' => $channel,
             ]);
+
+            // Debug: cek data yang diterima
+            $debugInfo = [
+                'received_channel' => $channel,
+                'received_agenda_ids' => $data['agenda_ids'] ?? [],
+                'received_phone' => isset($data['phone_number']) ? substr($data['phone_number'], 0, 6) . '***' : null,
+                'received_fcm_token' => isset($data['fcm_token']) ? substr($data['fcm_token'], 0, 20) . '...' : null,
+            ];
 
             // Subscribe ke semua agenda yang dipilih
             $results = $this->reminderService->subscribeToMultipleAgendas($data);
@@ -99,6 +108,11 @@ class NotificationController extends Controller
                 'results_count' => count($results),
                 'results' => $results,
             ]);
+
+            // Cek apakah benar-benar ada yang tersimpan
+            if (empty($results) && in_array($channel, ['whatsapp', 'both'])) {
+                \Log::warning('NotificationController@subscribe - NO RESULTS but expected WhatsApp subscription');
+            }
 
             $channelLabel = match ($channel) {
                 'whatsapp' => 'WhatsApp',
@@ -109,12 +123,8 @@ class NotificationController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} 1 jam sebelum agenda dimulai.",
-                'results' => $results,
-                'debug' => [
-                    'results_count' => count($results),
-                    'channel' => $channel,
-                    'agenda_ids' => $data['agenda_ids'] ?? [],
-                ],
+                'results_count' => count($results),
+                'debug' => $debugInfo,
             ]);
 
         } catch (\Throwable $e) {
