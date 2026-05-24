@@ -46,6 +46,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/notifications/test/whatsapp', [NotificationTestController::class, 'testWhatsapp'])->name('notifications.test.whatsapp');
     Route::post('/notifications/test/fcm', [NotificationTestController::class, 'testFcm'])->name('notifications.test.fcm');
     Route::post('/notifications/test/broadcast', [NotificationTestController::class, 'testFcmBroadcast'])->name('notifications.test.broadcast');
+    
+    // Admin-only: Debug reminder status
+    Route::get('/notifications/debug', [NotificationTestController::class, 'debugReminders'])->name('notifications.debug');
+    Route::post('/notifications/run-scheduler', [NotificationTestController::class, 'runScheduler'])->name('notifications.run-scheduler');
 });
 
 require __DIR__.'/auth.php';
