@@ -200,7 +200,7 @@
     <div class="filter-section no-print">
         <h3>Filter Laporan Agenda</h3>
         <form method="GET" action="{{ route('admin.agendas.print') }}">
-            <div class="filter-grid">
+            <div class="filter-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 500px;">
                 <div class="filter-group">
                     <label>Tanggal Mulai</label>
                     <input type="date" name="start_date" value="{{ $tanggalMulai }}">
@@ -208,34 +208,6 @@
                 <div class="filter-group">
                     <label>Tanggal Akhir</label>
                     <input type="date" name="end_date" value="{{ $tanggalAkhir }}">
-                </div>
-                <div class="filter-group">
-                    <label>Bulan</label>
-                    <select name="month">
-                        <option value="">Semua Bulan</option>
-                        @foreach ($namaBulan as $key => $nama)
-                            <option value="{{ $key }}" {{ $bulan == $key ? 'selected' : '' }}>{{ $nama }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Tahun</label>
-                    <select name="year">
-                        <option value="">Semua Tahun</option>
-                        @for ($y = now()->year + 1; $y >= 2020; $y--)
-                            <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
-                        @endfor
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Status</label>
-                    <select name="status">
-                        <option value="">Semua Status</option>
-                        <option value="terjadwal" {{ ($filters['status'] ?? '') == 'terjadwal' ? 'selected' : '' }}>Terjadwal</option>
-                        <option value="berlangsung" {{ ($filters['status'] ?? '') == 'berlangsung' ? 'selected' : '' }}>Berlangsung</option>
-                        <option value="selesai" {{ ($filters['status'] ?? '') == 'selesai' ? 'selected' : '' }}>Selesai</option>
-                        <option value="dibatalkan" {{ ($filters['status'] ?? '') == 'dibatalkan' ? 'selected' : '' }}>Dibatalkan</option>
-                    </select>
                 </div>
             </div>
             <div class="filter-buttons">
