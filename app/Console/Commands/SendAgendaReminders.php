@@ -19,25 +19,35 @@ class SendAgendaReminders extends Command
         $sent = 0;
 
         $this->info('Memulai pengiriman pengingat agenda...');
+        $this->info("Waktu server: {$now->format('Y-m-d H:i:s')} WIB");
         $this->newLine();
 
-        // Kirim pengingat 1 jam sebelumnya
+        // Kirim pengingat 1 jam sebelumnya (window 50-70 menit untuk toleransi)
         $this->info('⏱️ Cek pengingat 1 jam...');
+
+        // Window diperlebar: 50-70 menit dari sekarang
+        // Ini memberikan toleransi 20 menit jika scheduler delay
+        $windowStart = $now->copy()->addMinutes(50);
+        $windowEnd = $now->copy()->addMinutes(70);
+        
+        $this->info("   Window: {$windowStart->format('H:i')} - {$windowEnd->format('H:i')}");
 
         $agendas1h = Agenda::query()
             ->where('status', '!=', 'dibatalkan')
-            ->whereBetween('waktu_mulai', [
-                $now->copy()->addHour()->subMinute(),
-                $now->copy()->addHour()->addMinute(),
-            ])
+            ->whereBetween('waktu_mulai', [$windowStart, $windowEnd])
             ->get();
 
+        $this->info("   Agenda ditemukan: {$agendas1h->count()}");
+
         foreach ($agendas1h as $agenda) {
+            $this->line("   → Proses: {$agenda->perihal_kegiatan} ({$agenda->waktu_mulai->format('H:i')})");
             $count = $this->sendRemindersForAgenda($agenda, '1h', $service, $fcm);
             $sent += $count;
 
             if ($count > 0) {
-                $this->line("   ✓ {$agenda->perihal_kegiatan}: {$count} notifikasi");
+                $this->line("     ✓ Terkirim: {$count} notifikasi");
+            } else {
+                $this->line("     ⚠ Tidak ada subscriber atau sudah dikirim");
             }
         }
 
@@ -55,12 +65,7 @@ class SendAgendaReminders extends Command
     ): int {
         $count = 0;
 
-        // Tentukan kolom flag berdasarkan type
-        $waFlag = $type === '24h' ? 'whatsapp_sent' : 'whatsapp_sent';
-        $fcmFlag = $type === '24h' ? 'fcm_sent' : 'fcm_sent';
-
-        // Kirim ke subscriber yang belum dikirim untuk type ini
-        // Untuk simplicity, kita track berdasarkan status dan flag
+        // Kirim ke subscriber yang belum dikirim
         $subscribers = NotifikasiPendaftar::where('agenda_id', $agenda->id)
             ->where('status', '!=', 'failed')
             ->where(function ($q) {

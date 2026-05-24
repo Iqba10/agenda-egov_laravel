@@ -10,6 +10,7 @@ class FcmToken extends Model
         'token',
         'device_name',
         'subscribed_agendas',
+        'sent_reminders',
         'is_active',
     ];
 
@@ -17,6 +18,7 @@ class FcmToken extends Model
     {
         return [
             'subscribed_agendas' => 'array',
+            'sent_reminders'     => 'array',
             'is_active'          => 'boolean',
         ];
     }
@@ -51,5 +53,26 @@ class FcmToken extends Model
     public static function findByToken(string $token): ?self
     {
         return static::where('token', $token)->first();
+    }
+
+    /**
+     * Check if reminder already sent for this agenda
+     */
+    public function hasReminderSent(int $agendaId): bool
+    {
+        $sent = $this->sent_reminders ?? [];
+        return in_array($agendaId, $sent);
+    }
+
+    /**
+     * Mark reminder as sent for this agenda
+     */
+    public function markReminderSent(int $agendaId): void
+    {
+        $sent = $this->sent_reminders ?? [];
+        if (!in_array($agendaId, $sent)) {
+            $sent[] = $agendaId;
+            $this->update(['sent_reminders' => $sent]);
+        }
     }
 }

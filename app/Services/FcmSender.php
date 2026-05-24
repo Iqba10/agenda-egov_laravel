@@ -223,18 +223,29 @@ class FcmSender
 
     public function sendToAgendaSubscribers(Agenda $agenda, string $type = 'immediate'): int
     {
-        $tokens = FcmToken::active()
+        // Get FCM tokens that subscribed to this agenda and haven't received reminder yet
+        $fcmTokens = FcmToken::active()
             ->whereJsonContains('subscribed_agendas', $agenda->id)
-            ->pluck('token')
-            ->toArray();
+            ->get();
 
-        if (empty($tokens)) {
+        if ($fcmTokens->isEmpty()) {
             return 0;
         }
 
         $successCount = 0;
-        foreach ($tokens as $token) {
-            if ($this->sendAgendaReminder($token, $agenda, $type)) {
+        foreach ($fcmTokens as $fcmToken) {
+            // Skip if reminder already sent for this agenda
+            if ($fcmToken->hasReminderSent($agenda->id)) {
+                Log::info('FCM reminder already sent, skipping', [
+                    'token_id' => $fcmToken->id,
+                    'agenda_id' => $agenda->id,
+                ]);
+                continue;
+            }
+
+            if ($this->sendAgendaReminder($fcmToken->token, $agenda, $type)) {
+                // Mark as sent to prevent duplicate
+                $fcmToken->markReminderSent($agenda->id);
                 $successCount++;
             }
         }
