@@ -87,8 +87,18 @@ class NotificationController extends Controller
         }
 
         try {
+            \Log::info('NotificationController@subscribe - START', [
+                'validated_data' => $data,
+                'channel' => $channel,
+            ]);
+
             // Subscribe ke semua agenda yang dipilih
             $results = $this->reminderService->subscribeToMultipleAgendas($data);
+
+            \Log::info('NotificationController@subscribe - RESULTS', [
+                'results_count' => count($results),
+                'results' => $results,
+            ]);
 
             $channelLabel = match ($channel) {
                 'whatsapp' => 'WhatsApp',
@@ -100,13 +110,23 @@ class NotificationController extends Controller
                 'success' => true,
                 'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} 1 jam sebelum agenda dimulai.",
                 'results' => $results,
+                'debug' => [
+                    'results_count' => count($results),
+                    'channel' => $channel,
+                    'agenda_ids' => $data['agenda_ids'] ?? [],
+                ],
             ]);
 
         } catch (\Throwable $e) {
+            \Log::error('NotificationController@subscribe - ERROR', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             report($e);
             return response()->json([
                 'success' => false,
                 'message' => config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan. Silakan coba lagi.',
+                'debug_error' => $e->getMessage(),
             ], 500);
         }
     }
