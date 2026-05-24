@@ -560,14 +560,14 @@
 <script>
 // Firebase Config - injected from server
 window.FIREBASE_CONFIG = {
-    apiKey: '{{ config("services.firebase.api_key", "") }}',
-    authDomain: '{{ config("services.firebase.auth_domain", "") }}',
+    apiKey: '{{ config("services.firebase.client.api_key", "") }}',
+    authDomain: '{{ config("services.firebase.client.auth_domain", "") }}',
     projectId: '{{ config("services.firebase.project_id", "") }}',
-    storageBucket: '{{ config("services.firebase.storage_bucket", "") }}',
-    messagingSenderId: '{{ config("services.firebase.messaging_sender_id", "") }}',
-    appId: '{{ config("services.firebase.app_id", "") }}',
+    storageBucket: '{{ config("services.firebase.client.storage_bucket", "") }}',
+    messagingSenderId: '{{ config("services.firebase.client.messaging_sender_id", "") }}',
+    appId: '{{ config("services.firebase.client.app_id", "") }}',
 };
-window.FIREBASE_VAPID_KEY = '{{ config("services.firebase.vapid_key", "") }}';
+window.FIREBASE_VAPID_KEY = '{{ config("services.firebase.client.vapid_key", "") }}';
 
 const selectedAgendaIds = new Set();
 let selectedChannel = 'whatsapp';

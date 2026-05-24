@@ -12,20 +12,21 @@ const FirebaseNotification = {
     getConfig() {
         // Try meta tags first (works in production)
         const getMeta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || '';
+        const globalConfig = window.FIREBASE_CONFIG || {};
         
         return {
-            apiKey: getMeta('firebase-api-key') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_API_KEY : ''),
-            authDomain: getMeta('firebase-auth-domain') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN : ''),
-            projectId: getMeta('firebase-project-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_PROJECT_ID : ''),
-            storageBucket: getMeta('firebase-storage-bucket') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET : ''),
-            messagingSenderId: getMeta('firebase-messaging-sender-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID : ''),
-            appId: getMeta('firebase-app-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_APP_ID : ''),
+            apiKey: getMeta('firebase-api-key') || globalConfig.apiKey || '',
+            authDomain: getMeta('firebase-auth-domain') || globalConfig.authDomain || '',
+            projectId: getMeta('firebase-project-id') || globalConfig.projectId || '',
+            storageBucket: getMeta('firebase-storage-bucket') || globalConfig.storageBucket || '',
+            messagingSenderId: getMeta('firebase-messaging-sender-id') || globalConfig.messagingSenderId || '',
+            appId: getMeta('firebase-app-id') || globalConfig.appId || '',
         };
     },
 
     getVapidKey() {
         const meta = document.querySelector('meta[name="firebase-vapid-key"]');
-        return meta?.content || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_VAPID_KEY : '');
+        return meta?.content || window.FIREBASE_VAPID_KEY || '';
     },
 
     config: null,
