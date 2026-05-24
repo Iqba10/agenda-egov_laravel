@@ -90,8 +90,23 @@ class FonnteSender
 
     public function sendAgendaReminder(string $phone, Agenda $agenda, string $type = 'immediate'): bool
     {
+        Log::info('sendAgendaReminder called', [
+            'phone' => $phone,
+            'agenda_id' => $agenda->id,
+            'agenda_title' => $agenda->perihal_kegiatan,
+            'type' => $type,
+            'token_configured' => $this->isConfigured(),
+            'token_length' => strlen($this->token ?? ''),
+        ]);
+        
         $message = $this->buildAgendaMessage($agenda, $type);
         $result = $this->send($phone, $message);
+        
+        Log::info('sendAgendaReminder result', [
+            'success' => $result['success'],
+            'error' => $result['error'] ?? null,
+        ]);
+        
         return $result['success'];
     }
 
