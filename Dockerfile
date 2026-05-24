@@ -54,12 +54,16 @@ RUN mkdir -p storage/logs storage/framework/{cache/data,sessions,views} bootstra
 # Expose port
 EXPOSE 8080
 
-# Start command - clear cache first, then rebuild with env vars
-CMD php artisan config:clear && \
+# Start web server plus background workers used in Railway production
+CMD ["sh", "-c", "\
+    php artisan config:clear && \
     php artisan cache:clear && \
     php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache && \
-    php artisan migrate --force || true && \
-    php artisan storage:link --force || true && \
-    php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
+    (php artisan migrate --force || true) && \
+    (php artisan storage:link --force || true) && \
+    (while true; do php artisan agenda:sync-statuses --no-interaction; sleep 60; done) & \
+    (while true; do php artisan agenda:send-reminders --no-interaction; sleep 60; done) & \
+    php artisan serve --host=0.0.0.0 --port=${PORT:-8080} \
+"]
