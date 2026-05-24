@@ -88,9 +88,11 @@ class Agenda extends Model
         $now = now()->toDateTimeString();
 
         // Filter by effective status based on timestamps using application timezone
+        // Handle NULL values for waktu_mulai and waktu_selesai
         return $query->whereRaw("
             CASE
                 WHEN status = 'dibatalkan' THEN 'dibatalkan'
+                WHEN waktu_mulai IS NULL OR waktu_selesai IS NULL THEN status
                 WHEN ? < waktu_mulai THEN 'terjadwal'
                 WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
                 ELSE 'selesai'
