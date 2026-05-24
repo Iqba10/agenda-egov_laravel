@@ -7,8 +7,13 @@ use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-Schedule::command('agenda:sync-statuses')->everyMinute();
-Schedule::command('agenda:send-reminders')->everyMinute();
+Schedule::command('agenda:sync-statuses')
+    ->everyMinute()
+    ->timezone(config('app.timezone'));
+
+Schedule::command('agenda:send-reminders')
+    ->everyMinute()
+    ->timezone(config('app.timezone'));
 
 Artisan::command('legacy:import {--path=} {--uploads=} {--fresh}', function () {
     $resolvePath = static function (array $candidates, ?string $override = null): ?string {
