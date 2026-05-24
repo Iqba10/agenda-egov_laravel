@@ -74,17 +74,24 @@
 
     {{-- Subscribers Table --}}
     <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-6">
-        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div class="flex items-center gap-2">
                 <i data-lucide="users" class="h-4 w-4 text-slate-500"></i>
                 <span class="font-semibold text-slate-700 text-sm">Daftar Subscribers</span>
                 <span class="text-xs text-slate-500">({{ $subscribers->total() }} data)</span>
             </div>
-            <button type="button" onclick="bulkResendSelected()" id="bulkResendBtn"
-                    class="hidden px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors">
-                <i data-lucide="send" class="h-3.5 w-3.5 inline mr-1"></i>
-                Kirim Ulang Terpilih
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="runSchedulerNow()" id="runSchedulerBtn"
+                        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+                    <i data-lucide="play" class="h-3.5 w-3.5 inline mr-1"></i>
+                    Proses Reminder Sekarang
+                </button>
+                <button type="button" onclick="bulkResendSelected()" id="bulkResendBtn"
+                        class="hidden px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors">
+                    <i data-lucide="send" class="h-3.5 w-3.5 inline mr-1"></i>
+                    Kirim Ulang Terpilih
+                </button>
+            </div>
         </div>
         
         <div class="overflow-x-auto">
@@ -328,6 +335,44 @@ function showToast(message, success = true) {
     content.className = `px-4 py-3 rounded-xl shadow-lg border text-sm font-medium ${success ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`;
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+function runSchedulerNow() {
+    const btn = document.getElementById('runSchedulerBtn');
+    const original = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = 'Memproses...';
+
+    fetch('/admin/notifications/run-scheduler', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+    })
+    .then(async (r) => {
+        const data = await r.json();
+        return { ok: r.ok, data };
+    })
+    .then(({ ok, data }) => {
+        if (ok && data.success) {
+            const compactOutput = (data.output || '').replace(/\s+/g, ' ').trim();
+            showToast(compactOutput || 'Scheduler berhasil dijalankan.', true);
+            setTimeout(() => location.reload(), 1800);
+            return;
+        }
+
+        showToast(data.message || data.error || 'Gagal menjalankan scheduler.', false);
+    })
+    .catch(() => showToast('Gagal menjalankan scheduler.', false))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = original;
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    });
 }
 
 function resendSubscriber(id) {
