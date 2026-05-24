@@ -166,41 +166,67 @@ class AgendaReminderService
      */
     public function subscribeToMultipleAgendas(array $data): array
     {
-        \Log::info('subscribeToMultipleAgendas()', [
-            'channel' => $data['channel'] ?? null,
-            'agenda_ids' => $data['agenda_ids'] ?? [],
-            'has_phone' => !empty($data['phone_number']),
-            'has_fcm' => !empty($data['fcm_token']),
-        ]);
         $results = [];
         $agendaIds = $data['agenda_ids'] ?? [];
         $channel = $data['channel'] ?? 'whatsapp';
+        $phoneNumber = $data['phone_number'] ?? null;
+        $fcmToken = $data['fcm_token'] ?? null;
+
+        \Log::info('subscribeToMultipleAgendas() - START', [
+            'channel' => $channel,
+            'agenda_ids' => $agendaIds,
+            'agenda_ids_count' => count($agendaIds),
+            'phone_number' => $phoneNumber ? substr($phoneNumber, 0, 6) . '***' : null,
+            'fcm_token' => $fcmToken ? substr($fcmToken, 0, 20) . '...' : null,
+            'will_save_whatsapp' => in_array($channel, ['whatsapp', 'both']) && !empty($phoneNumber),
+            'will_save_fcm' => in_array($channel, ['fcm', 'both']) && !empty($fcmToken),
+        ]);
 
         foreach ($agendaIds as $agendaId) {
+            \Log::info('Processing agenda', ['agenda_id' => $agendaId]);
+            
             try {
                 // Untuk WhatsApp/both, simpan ke notifikasi_pendaftar
-                if (in_array($channel, ['whatsapp', 'both']) && !empty($data['phone_number'])) {
+                if (in_array($channel, ['whatsapp', 'both']) && !empty($phoneNumber)) {
+                    \Log::info('Saving to notifikasi_pendaftar', [
+                        'agenda_id' => $agendaId,
+                        'phone' => substr($phoneNumber, 0, 6) . '***',
+                    ]);
+                    
                     $subscriber = $this->subscribe([
                         'agenda_id'    => $agendaId,
-                        'phone_number' => $data['phone_number'],
+                        'phone_number' => $phoneNumber,
                         'nama'         => $data['nama'] ?? null,
                         'channel'      => $channel,
+                        'fcm_token'    => $fcmToken, // Pass FCM token too
                     ]);
+                    
+                    \Log::info('Subscriber saved', [
+                        'subscriber_id' => $subscriber->id,
+                        'agenda_id' => $subscriber->agenda_id,
+                    ]);
+                    
                     $results[] = $subscriber;
                 }
 
                 // Untuk FCM/both, subscribe token ke agenda
-                if (in_array($channel, ['fcm', 'both']) && !empty($data['fcm_token'])) {
-                    $this->subscribeFcmToAgenda($data['fcm_token'], $agendaId);
+                if (in_array($channel, ['fcm', 'both']) && !empty($fcmToken)) {
+                    \Log::info('Subscribing FCM to agenda', ['agenda_id' => $agendaId]);
+                    $this->subscribeFcmToAgenda($fcmToken, $agendaId);
                 }
             } catch (\Throwable $e) {
-                \Log::warning('subscribeToMultipleAgendas item failed', [
+                \Log::error('subscribeToMultipleAgendas item FAILED', [
                     'agenda_id' => $agendaId,
                     'channel' => $channel,
-                    'message' => $e->getMessage(),
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
         }
+
+        \Log::info('subscribeToMultipleAgendas() - END', [
+            'results_count' => count($results),
+        ]);
 
         return $results;
     }
