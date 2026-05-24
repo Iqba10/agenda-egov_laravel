@@ -19,6 +19,24 @@ Route::get('/api/agenda-search', [NotificationController::class, 'search'])->nam
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
 
 // Temporary debug endpoint - hapus setelah debugging selesai
+// Trigger scheduler manual untuk test
+Route::get('/api/debug/run-scheduler', function () {
+    try {
+        \Artisan::call('agenda:send-reminders');
+        $output = \Artisan::output();
+        
+        return response()->json([
+            'success' => true,
+            'output' => $output,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+});
+
 Route::get('/api/debug/test-insert/{agendaId}', function ($agendaId) {
     try {
         // Test insert langsung ke database
