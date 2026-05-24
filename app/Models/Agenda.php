@@ -60,8 +60,11 @@ class Agenda extends Model
 
             // Keep persisted status in sync with agenda timestamps.
             // "dibatalkan" stays manual; other states follow schedule automatically.
+            // Note: "berlangsung" is a computed state, not stored in DB.
             if ($agenda->status !== 'dibatalkan') {
-                $agenda->status = $agenda->computedStatus();
+                $computed = $agenda->computedStatus();
+                // Only persist valid DB enum values (berlangsung is computed-only)
+                $agenda->status = $computed === 'berlangsung' ? 'terjadwal' : $computed;
             }
         });
     }

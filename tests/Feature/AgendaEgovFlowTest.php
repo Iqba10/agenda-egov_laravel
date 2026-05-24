@@ -23,7 +23,9 @@ class AgendaEgovFlowTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'user']);
 
-        $this->actingAs($user)->get(route('admin.dashboard'))->assertForbidden();
+        // Middleware redirects regular users to profile page with warning
+        $this->actingAs($user)->get(route('admin.dashboard'))
+            ->assertRedirect(route('profile.edit'));
     }
 
     public function test_agenda_effective_status_follows_schedule_unless_cancelled(): void
@@ -59,7 +61,11 @@ class AgendaEgovFlowTest extends TestCase
     {
         $admin  = User::factory()->create(['role' => 'admin']);
         $user   = User::factory()->create(['role' => 'admin']);
-        $agenda = $this->createAgenda(['status' => 'selesai']);
+        // Create agenda with past timestamps so computed status is 'selesai'
+        $agenda = $this->createAgenda([
+            'waktu_mulai' => now()->subDays(2)->format('Y-m-d H:i:s'),
+            'waktu_selesai' => now()->subDay()->format('Y-m-d H:i:s'),
+        ]);
 
         $user->update(['role' => 'user']);
         $this->assertSame('user', $user->fresh()->role);
