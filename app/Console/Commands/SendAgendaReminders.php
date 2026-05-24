@@ -26,11 +26,13 @@ class SendAgendaReminders extends Command
         $this->newLine();
 
         // Cari subscribers yang perlu dikirim notifikasi
-        // Berdasarkan reminder_minutes masing-masing (dengan toleransi ±10 menit)
+        // Include agenda yang baru mulai (grace period 30 menit)
+        $graceMinutes = 30;
         $subscribers = NotifikasiPendaftar::with('agenda')
-            ->whereHas('agenda', function ($q) use ($now) {
+            ->whereHas('agenda', function ($q) use ($now, $graceMinutes) {
                 $q->where('status', '!=', 'dibatalkan')
-                  ->where('waktu_mulai', '>', $now); // Agenda belum dimulai
+                  // Include agenda yang sudah mulai tapi masih dalam grace period
+                  ->where('waktu_mulai', '>', $now->copy()->subMinutes($graceMinutes));
             })
             ->where(function ($q) {
                 $q->where('whatsapp_sent', false)
@@ -50,15 +52,25 @@ class SendAgendaReminders extends Command
 
             $reminderMinutes = $subscriber->reminder_minutes ?? 60;
             $reminderTime = $agenda->waktu_mulai->copy()->subMinutes($reminderMinutes);
+            $agendaStarted = $now->gte($agenda->waktu_mulai);
             
-            // Toleransi ±10 menit
+            // Toleransi window untuk reminder
             $windowStart = $reminderTime->copy()->subMinutes(10);
             $windowEnd = $reminderTime->copy()->addMinutes(10);
             
             $minutesUntilReminder = $now->diffInMinutes($reminderTime, false);
+            $minutesSinceAgendaStart = $agendaStarted ? $now->diffInMinutes($agenda->waktu_mulai) : 0;
 
             if ($now->between($windowStart, $windowEnd)) {
-                // Sudah waktunya kirim
+                // Tepat waktu - dalam window
+                $readyToSend[] = $subscriber;
+            } elseif ($now->gt($windowEnd) && !$agendaStarted) {
+                // Lewat window reminder TAPI agenda belum mulai - tetap kirim!
+                $this->warn("  [CATCH-UP] {$agenda->perihal_kegiatan} - reminder terlewat, agenda belum mulai");
+                $readyToSend[] = $subscriber;
+            } elseif ($agendaStarted && $minutesSinceAgendaStart <= $graceMinutes) {
+                // Agenda sudah mulai tapi masih dalam grace period - kirim juga
+                $this->warn("  [GRACE] {$agenda->perihal_kegiatan} - sudah mulai {$minutesSinceAgendaStart} menit lalu");
                 $readyToSend[] = $subscriber;
             } elseif ($now->lt($windowStart)) {
                 // Belum waktunya
@@ -69,7 +81,7 @@ class SendAgendaReminders extends Command
                     'minutes_until_reminder' => $minutesUntilReminder,
                 ];
             }
-            // Jika $now > $windowEnd, berarti sudah lewat window-nya, skip
+            // Jika agenda sudah lewat > grace period, skip (terlalu terlambat)
         }
 
         $this->info("Siap kirim: " . count($readyToSend) . " subscriber");
@@ -81,14 +93,14 @@ class SendAgendaReminders extends Command
             $reminderMinutes = $subscriber->reminder_minutes ?? 60;
             $type = $this->getReminderType($reminderMinutes);
 
-            $this->line("→ {$agenda->perihal_kegiatan}");
+            $this->line("-> {$agenda->perihal_kegiatan}");
             $this->line("  Waktu: {$agenda->waktu_mulai->format('d/m/Y H:i')} WIB");
             $this->line("  Subscriber: {$subscriber->phone_number} ({$subscriber->channel_preference})");
             $this->line("  Reminder: {$reminderMinutes} menit sebelum");
 
             if ($service->sendToSubscriber($subscriber, $type)) {
                 $sent++;
-                $this->info("  ✓ Terkirim!");
+                $this->info("  [OK] Terkirim!");
                 Log::info("Reminder sent", [
                     'subscriber_id' => $subscriber->id,
                     'agenda_id' => $agenda->id,
@@ -96,7 +108,7 @@ class SendAgendaReminders extends Command
                     'reminder_minutes' => $reminderMinutes,
                 ]);
             } else {
-                $this->warn("  ⚠ Gagal mengirim");
+                $this->warn("  [FAIL] Gagal mengirim");
             }
             $this->newLine();
         }
