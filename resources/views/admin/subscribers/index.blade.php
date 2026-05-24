@@ -98,6 +98,7 @@
                         <th class="px-4 py-3 text-left font-semibold text-slate-600">Subscriber</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-600">Channel</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-600">Reminder</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-600">Waktu Kirim</th>
                         <th class="px-4 py-3 text-center font-semibold text-slate-600">WA</th>
                         <th class="px-4 py-3 text-center font-semibold text-slate-600">FCM</th>
                         <th class="px-4 py-3 text-left font-semibold text-slate-600">Terdaftar</th>
@@ -147,6 +148,27 @@
                         <td class="px-4 py-3">
                             <span class="text-xs text-slate-600">{{ $sub->reminder_minutes ?? 60 }} menit</span>
                         </td>
+                        <td class="px-4 py-3">
+                            @php
+                                $reminderMinutes = $sub->reminder_minutes ?? 60;
+                                $reminderTime = $sub->agenda?->waktu_mulai?->copy()->subMinutes($reminderMinutes);
+                                $now = now();
+                                $isPast = $reminderTime && $now->gt($reminderTime);
+                                $minutesUntil = $reminderTime ? $now->diffInMinutes($reminderTime, false) : null;
+                            @endphp
+                            @if($reminderTime)
+                                <p class="text-xs font-medium {{ $isPast ? 'text-slate-400' : 'text-slate-700' }}">
+                                    {{ $reminderTime->format('d/m H:i') }}
+                                </p>
+                                @if($isPast)
+                                    <p class="text-[10px] text-red-500">Lewat {{ abs(round($minutesUntil)) }} menit</p>
+                                @else
+                                    <p class="text-[10px] text-emerald-600">Dalam {{ round($minutesUntil) }} menit</p>
+                                @endif
+                            @else
+                                <span class="text-xs text-slate-400">-</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-center">
                             @if(in_array($sub->channel_preference, ['whatsapp', 'both']))
                                 @if($sub->whatsapp_sent)
@@ -195,7 +217,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="px-4 py-8 text-center text-slate-500">
+                        <td colspan="10" class="px-4 py-8 text-center text-slate-500">
                             Belum ada subscriber.
                         </td>
                     </tr>
