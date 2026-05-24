@@ -26,13 +26,14 @@ class SendAgendaReminders extends Command
         $this->info("Waktu server: {$now->format('Y-m-d H:i:s')} WIB");
         $this->newLine();
 
-        // Kirim pengingat untuk agenda yang dimulai dalam 30-90 menit
-        // Window lebar untuk memastikan tidak terlewat
-        $windowStart = $now->copy()->addMinutes(30);
-        $windowEnd = $now->copy()->addMinutes(90);
+        // Kirim pengingat untuk agenda yang dimulai dalam 50-70 menit
+        // Ini berarti notifikasi masuk ~1 jam sebelum (±10 menit toleransi)
+        // Contoh: agenda 21:00 → notifikasi masuk sekitar 19:50 - 20:10
+        $windowStart = $now->copy()->addMinutes(50);
+        $windowEnd = $now->copy()->addMinutes(70);
         
         $this->info("Window pengiriman: {$windowStart->format('H:i')} - {$windowEnd->format('H:i')}");
-        $this->info("(Agenda yang mulai dalam 30-90 menit dari sekarang)");
+        $this->info("(Notifikasi ~1 jam sebelum agenda, toleransi ±10 menit)");
         $this->newLine();
 
         // Cari agenda yang belum dikirim reminder
