@@ -23,31 +23,26 @@ class AgendaController extends Controller
     {
         $status      = $request->string('status')->toString();
         $base        = $this->filteredQuery($request);
-        $now         = now()->toDateTimeString();
         
-        // Calculate effective status counts based on application timezone
-        $statsCounts = (clone $base)
-            ->selectRaw("
-                CASE
-                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN ? < waktu_mulai THEN 'terjadwal'
-                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
-                    ELSE 'selesai'
-                END as effective_status,
-                COUNT(*) as count
-            ", [$now, $now])
-            ->groupByRaw("
-                CASE
-                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN ? < waktu_mulai THEN 'terjadwal'
-                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
-                    ELSE 'selesai'
-                END
-            ", [$now, $now])
-            ->pluck('count', 'effective_status');
+        // Fetch all to calculate stats and handle computed statuses
+        $allAgendas = (clone $base)
+            ->select(['id', 'status', 'waktu_mulai', 'waktu_selesai'])
+            ->get()
+            ->map(function ($agenda) {
+                return $agenda->computedStatus();
+            });
+
+        $statsCounts = $allAgendas->countBy();
+
+        $agendas = (clone $base)
+            ->select(['id', 'slug', 'jenis_agenda', 'perihal_kegiatan', 'waktu_mulai', 'waktu_selesai', 'tempat', 'asal_surat', 'status', 'diinput_oleh'])
+            ->status($status)
+            ->latest('waktu_mulai')
+            ->paginate(12)
+            ->withQueryString();
 
         return view('admin.agendas.index', [
-            'agendas' => (clone $base)->status($status)->select(['id', 'slug', 'jenis_agenda', 'perihal_kegiatan', 'waktu_mulai', 'waktu_selesai', 'tempat', 'asal_surat', 'status', 'diinput_oleh'])->latest('waktu_mulai')->paginate(12)->withQueryString(),
+            'agendas' => $agendas,
             'stats'   => [
                 'total'       => $statsCounts->sum(),
                 'terjadwal'   => $statsCounts->get('terjadwal', 0),

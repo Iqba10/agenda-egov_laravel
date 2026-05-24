@@ -14,7 +14,6 @@ class PublicAgendaController extends Controller
         $search = $request->string('search')->toString();
         $month = $request->string('month')->toString();
         $year = $request->string('year')->toString();
-        $now = now()->toDateTimeString();
 
         $baseQuery = Agenda::query();
 
@@ -34,26 +33,15 @@ class PublicAgendaController extends Controller
             $baseQuery->whereYear('waktu_mulai', $year);
         }
 
-        // Calculate effective status counts based on timestamps
-        $statsCounts = (clone $baseQuery)
-            ->selectRaw("
-                CASE
-                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN ? < waktu_mulai THEN 'terjadwal'
-                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
-                    ELSE 'selesai'
-                END as effective_status,
-                COUNT(*) as count
-            ", [$now, $now])
-            ->groupByRaw("
-                CASE
-                    WHEN status = 'dibatalkan' THEN 'dibatalkan'
-                    WHEN ? < waktu_mulai THEN 'terjadwal'
-                    WHEN ? BETWEEN waktu_mulai AND waktu_selesai THEN 'berlangsung'
-                    ELSE 'selesai'
-                END
-            ", [$now, $now])
-            ->pluck('count', 'effective_status');
+        // Fetch all to calculate stats and handle computed statuses
+        $allAgendas = (clone $baseQuery)
+            ->select(['id', 'status', 'waktu_mulai', 'waktu_selesai'])
+            ->get()
+            ->map(function ($agenda) {
+                return $agenda->computedStatus();
+            });
+
+        $statsCounts = $allAgendas->countBy();
 
         $query = (clone $baseQuery)->status($status);
 
