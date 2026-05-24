@@ -196,7 +196,5 @@ const FirebaseNotification = {
     },
 };
 
-// Export for use in Blade templates
+// Expose for Blade scripts loaded on the public page.
 window.FirebaseNotification = FirebaseNotification;
-
-export default FirebaseNotification;
