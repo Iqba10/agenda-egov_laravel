@@ -19,6 +19,17 @@ Route::get('/api/agenda-search', [NotificationController::class, 'search'])->nam
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
 
 // Temporary debug endpoint - hapus setelah debugging selesai
+Route::post('/api/debug/test-subscribe', function (\Illuminate\Http\Request $request) {
+    return response()->json([
+        'received' => true,
+        'raw_input' => $request->all(),
+        'agenda_ids' => $request->input('agenda_ids'),
+        'channel' => $request->input('channel'),
+        'has_phone' => !empty($request->input('phone_number')),
+        'has_fcm' => !empty($request->input('fcm_token')),
+    ]);
+});
+
 Route::get('/api/debug/reminders', function () {
     try {
         $now = now();
