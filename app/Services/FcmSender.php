@@ -204,10 +204,13 @@ class FcmSender
     public function sendAgendaReminder(string $token, Agenda $agenda, string $type = 'immediate'): bool
     {
         $typeLabel = match ($type) {
-            '24h'   => 'Pengingat H-1',
-            '6h'    => 'Pengingat 6 Jam Lagi',
-            '1h'    => 'Pengingat 1 Jam Lagi',
-            default => 'Pengingat Agenda',
+            '24h'    => 'Pengingat H-1',
+            '6h'     => 'Pengingat 6 Jam Lagi',
+            '2h'     => 'Pengingat 2 Jam Lagi',
+            '1h'     => 'Pengingat 1 Jam Lagi',
+            '30m'    => 'Pengingat 30 Menit Lagi',
+            'custom' => 'Pengingat Agenda',
+            default  => 'Pengingat Agenda',
         };
 
         $title = "{$typeLabel} — {$agenda->perihal_kegiatan}";

@@ -444,6 +444,38 @@
                 </div>
             </div>
 
+            {{-- Waktu Pengingat --}}
+            <div class="px-4 pb-3 shrink-0">
+                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Waktu Pengingat</label>
+                <div class="flex gap-2">
+                    <select id="reminderMinutes" onchange="handleReminderChange(this.value)"
+                            class="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 bg-white">
+                        <option value="15">15 menit sebelum</option>
+                        <option value="30">30 menit sebelum</option>
+                        <option value="60" selected>1 jam sebelum</option>
+                        <option value="120">2 jam sebelum</option>
+                        <option value="180">3 jam sebelum</option>
+                        <option value="360">6 jam sebelum</option>
+                        <option value="1440">1 hari sebelum</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                </div>
+                {{-- Custom input (hidden by default) --}}
+                <div id="customReminderSection" class="mt-2 hidden">
+                    <div class="flex gap-2 items-center">
+                        <input id="customReminderValue" type="number" min="5" max="10080" value="60" 
+                               class="w-20 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                        <select id="customReminderUnit" onchange="updateCustomReminder()"
+                                class="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 bg-white">
+                            <option value="1">menit</option>
+                            <option value="60" selected>jam</option>
+                            <option value="1440">hari</option>
+                        </select>
+                        <span class="text-xs text-slate-500">sebelum</span>
+                    </div>
+                </div>
+            </div>
+
             {{-- Search --}}
             <div class="px-4 pb-2.5 shrink-0 border-t border-slate-100 pt-3">
                 <div class="relative">
@@ -504,6 +536,30 @@ window.FIREBASE_VAPID_KEY = '{{ config("services.firebase.vapid_key", "") }}';
 const selectedAgendaIds = new Set();
 let selectedChannel = 'whatsapp';
 let fcmToken = null;
+let selectedReminderMinutes = 60; // Default 1 jam
+
+// Handle reminder time selection
+function handleReminderChange(value) {
+    const customSection = document.getElementById('customReminderSection');
+    
+    if (value === 'custom') {
+        customSection.classList.remove('hidden');
+        updateCustomReminder();
+    } else {
+        customSection.classList.add('hidden');
+        selectedReminderMinutes = parseInt(value);
+    }
+}
+
+function updateCustomReminder() {
+    const value = parseInt(document.getElementById('customReminderValue').value) || 60;
+    const unit = parseInt(document.getElementById('customReminderUnit').value) || 1;
+    selectedReminderMinutes = value * unit;
+    
+    // Validate: min 5 minutes, max 7 days (10080 minutes)
+    if (selectedReminderMinutes < 5) selectedReminderMinutes = 5;
+    if (selectedReminderMinutes > 10080) selectedReminderMinutes = 10080;
+}
 
 const STATUS_STYLES = {
     terjadwal:   { label: 'Terjadwal',   cls: 'bg-amber-100 text-amber-700 border-amber-200' },
@@ -743,6 +799,7 @@ async function submitNotifSubscribe() {
         const payload = {
             channel: selectedChannel,
             agenda_ids: [...selectedAgendaIds],
+            reminder_minutes: selectedReminderMinutes,
         };
         
         if (phone) payload.phone_number = phone;

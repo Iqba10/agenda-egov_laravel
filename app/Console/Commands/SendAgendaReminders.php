@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Agenda;
-use App\Models\AgendaReminder;
 use App\Models\NotifikasiPendaftar;
 use App\Services\AgendaReminderService;
 use App\Services\FcmSender;
@@ -13,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class SendAgendaReminders extends Command
 {
     protected $signature   = 'agenda:send-reminders';
-    protected $description = 'Kirim pengingat WhatsApp dan FCM 1 jam sebelum agenda dimulai.';
+    protected $description = 'Kirim pengingat WhatsApp dan FCM berdasarkan waktu yang dipilih subscriber.';
 
     public function handle(AgendaReminderService $service, FcmSender $fcm): int
     {
@@ -26,67 +25,90 @@ class SendAgendaReminders extends Command
         $this->info("Waktu server: {$now->format('Y-m-d H:i:s')} WIB");
         $this->newLine();
 
-        // Kirim pengingat untuk agenda yang dimulai dalam 50-70 menit
-        // Ini berarti notifikasi masuk ~1 jam sebelum (±10 menit toleransi)
-        // Contoh: agenda 21:00 → notifikasi masuk sekitar 19:50 - 20:10
-        $windowStart = $now->copy()->addMinutes(50);
-        $windowEnd = $now->copy()->addMinutes(70);
-        
-        $this->info("Window pengiriman: {$windowStart->format('H:i')} - {$windowEnd->format('H:i')}");
-        $this->info("(Notifikasi ~1 jam sebelum agenda, toleransi ±10 menit)");
-        $this->newLine();
-
-        // Cari agenda yang belum dikirim reminder
-        $agendas = Agenda::query()
-            ->where('status', '!=', 'dibatalkan')
-            ->whereBetween('waktu_mulai', [$windowStart, $windowEnd])
-            ->whereNull('reminder_sent_at') // Belum pernah kirim reminder
+        // Cari subscribers yang perlu dikirim notifikasi
+        // Berdasarkan reminder_minutes masing-masing (dengan toleransi ±10 menit)
+        $subscribers = NotifikasiPendaftar::with('agenda')
+            ->whereHas('agenda', function ($q) use ($now) {
+                $q->where('status', '!=', 'dibatalkan')
+                  ->where('waktu_mulai', '>', $now); // Agenda belum dimulai
+            })
+            ->where(function ($q) {
+                $q->where('whatsapp_sent', false)
+                  ->orWhere('fcm_sent', false);
+            })
             ->get();
 
-        $this->info("Agenda dalam window: {$agendas->count()}");
+        $this->info("Total subscribers pending: {$subscribers->count()}");
+        $this->newLine();
 
-        if ($agendas->isEmpty()) {
-            $this->info("Tidak ada agenda yang perlu dikirim reminder.");
+        $readyToSend = [];
+        $upcoming = [];
+
+        foreach ($subscribers as $subscriber) {
+            $agenda = $subscriber->agenda;
+            if (!$agenda || !$agenda->waktu_mulai) continue;
+
+            $reminderMinutes = $subscriber->reminder_minutes ?? 60;
+            $reminderTime = $agenda->waktu_mulai->copy()->subMinutes($reminderMinutes);
             
-            // Log untuk debugging
-            $allUpcoming = Agenda::query()
-                ->where('status', '!=', 'dibatalkan')
-                ->where('waktu_mulai', '>', $now)
-                ->whereNull('reminder_sent_at')
-                ->orderBy('waktu_mulai')
-                ->limit(5)
-                ->get(['id', 'perihal_kegiatan', 'waktu_mulai']);
+            // Toleransi ±10 menit
+            $windowStart = $reminderTime->copy()->subMinutes(10);
+            $windowEnd = $reminderTime->copy()->addMinutes(10);
             
-            if ($allUpcoming->isNotEmpty()) {
-                $this->newLine();
-                $this->info("Agenda mendatang yang belum dikirim reminder:");
-                foreach ($allUpcoming as $a) {
-                    $diff = $now->diffInMinutes($a->waktu_mulai);
-                    $this->line("  - {$a->perihal_kegiatan} ({$a->waktu_mulai->format('H:i')}) - dalam {$diff} menit");
-                }
+            $minutesUntilReminder = $now->diffInMinutes($reminderTime, false);
+
+            if ($now->between($windowStart, $windowEnd)) {
+                // Sudah waktunya kirim
+                $readyToSend[] = $subscriber;
+            } elseif ($now->lt($windowStart)) {
+                // Belum waktunya
+                $upcoming[] = [
+                    'subscriber' => $subscriber,
+                    'agenda' => $agenda,
+                    'reminder_minutes' => $reminderMinutes,
+                    'minutes_until_reminder' => $minutesUntilReminder,
+                ];
             }
+            // Jika $now > $windowEnd, berarti sudah lewat window-nya, skip
         }
 
-        foreach ($agendas as $agenda) {
-            $this->newLine();
-            $this->line("→ Proses: {$agenda->perihal_kegiatan}");
-            $this->line("  Waktu mulai: {$agenda->waktu_mulai->format('d/m/Y H:i')} WIB");
-            
-            $count = $this->sendRemindersForAgenda($agenda, '1h', $service, $fcm);
-            $sent += $count;
+        $this->info("Siap kirim: " . count($readyToSend) . " subscriber");
+        $this->newLine();
 
-            // Tandai agenda sudah dikirim reminder
-            $agenda->update(['reminder_sent_at' => now()]);
+        // Kirim notifikasi
+        foreach ($readyToSend as $subscriber) {
+            $agenda = $subscriber->agenda;
+            $reminderMinutes = $subscriber->reminder_minutes ?? 60;
+            $type = $this->getReminderType($reminderMinutes);
 
-            if ($count > 0) {
-                $this->info("  ✓ Terkirim: {$count} notifikasi");
-                Log::info("Reminder sent for agenda", [
+            $this->line("→ {$agenda->perihal_kegiatan}");
+            $this->line("  Waktu: {$agenda->waktu_mulai->format('d/m/Y H:i')} WIB");
+            $this->line("  Subscriber: {$subscriber->phone_number} ({$subscriber->channel_preference})");
+            $this->line("  Reminder: {$reminderMinutes} menit sebelum");
+
+            if ($service->sendToSubscriber($subscriber, $type)) {
+                $sent++;
+                $this->info("  ✓ Terkirim!");
+                Log::info("Reminder sent", [
+                    'subscriber_id' => $subscriber->id,
                     'agenda_id' => $agenda->id,
                     'agenda' => $agenda->perihal_kegiatan,
-                    'count' => $count,
+                    'reminder_minutes' => $reminderMinutes,
                 ]);
             } else {
-                $this->warn("  ⚠ Tidak ada subscriber untuk agenda ini");
+                $this->warn("  ⚠ Gagal mengirim");
+            }
+            $this->newLine();
+        }
+
+        // Tampilkan upcoming reminders
+        if (!empty($upcoming)) {
+            $this->info("Pengingat mendatang:");
+            usort($upcoming, fn($a, $b) => $a['minutes_until_reminder'] <=> $b['minutes_until_reminder']);
+            
+            foreach (array_slice($upcoming, 0, 5) as $item) {
+                $this->line("  - {$item['agenda']->perihal_kegiatan}");
+                $this->line("    Kirim dalam: {$item['minutes_until_reminder']} menit ({$item['reminder_minutes']} menit sebelum agenda)");
             }
         }
 
@@ -98,39 +120,16 @@ class SendAgendaReminders extends Command
         return self::SUCCESS;
     }
 
-    private function sendRemindersForAgenda(
-        Agenda $agenda,
-        string $type,
-        AgendaReminderService $service,
-        FcmSender $fcm
-    ): int {
-        $count = 0;
-
-        // Kirim ke subscriber WhatsApp yang belum dikirim
-        $subscribers = NotifikasiPendaftar::where('agenda_id', $agenda->id)
-            ->where('status', '!=', 'failed')
-            ->where(function ($q) {
-                $q->where('whatsapp_sent', false)
-                    ->orWhere('fcm_sent', false);
-            })
-            ->get();
-
-        $this->line("  Subscribers ditemukan: {$subscribers->count()}");
-
-        foreach ($subscribers as $subscriber) {
-            $this->line("    - {$subscriber->phone_number} ({$subscriber->channel_preference})");
-            if ($service->sendToSubscriber($subscriber, $type)) {
-                $count++;
-            }
-        }
-
-        // Kirim FCM ke semua token yang subscribe agenda ini
-        $fcmCount = $fcm->sendToAgendaSubscribers($agenda, $type);
-        if ($fcmCount > 0) {
-            $this->line("  FCM tokens terkirim: {$fcmCount}");
-        }
-        $count += $fcmCount;
-
-        return $count;
+    /**
+     * Get reminder type label based on minutes
+     */
+    private function getReminderType(int $minutes): string
+    {
+        if ($minutes <= 30) return '30m';
+        if ($minutes <= 60) return '1h';
+        if ($minutes <= 120) return '2h';
+        if ($minutes <= 360) return '6h';
+        if ($minutes <= 1440) return '24h';
+        return 'custom';
     }
 }

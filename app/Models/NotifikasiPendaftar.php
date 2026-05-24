@@ -15,6 +15,7 @@ class NotifikasiPendaftar extends Model
         'phone_number',
         'fcm_token_id',
         'channel_preference',
+        'reminder_minutes', // Waktu pengingat dalam menit sebelum agenda
         'status',
         'whatsapp_sent',
         'whatsapp_sent_at',
@@ -26,11 +27,43 @@ class NotifikasiPendaftar extends Model
     protected function casts(): array
     {
         return [
+            'reminder_minutes' => 'integer',
             'whatsapp_sent'    => 'boolean',
             'whatsapp_sent_at' => 'datetime',
             'fcm_sent'         => 'boolean',
             'fcm_sent_at'      => 'datetime',
         ];
+    }
+
+    /**
+     * Get human-readable reminder time
+     */
+    public function getReminderLabelAttribute(): string
+    {
+        $minutes = $this->reminder_minutes ?? 60;
+        
+        if ($minutes < 60) {
+            return "{$minutes} menit sebelum";
+        }
+        
+        $hours = $minutes / 60;
+        if ($hours == floor($hours)) {
+            return (int)$hours . " jam sebelum";
+        }
+        
+        return "{$minutes} menit sebelum";
+    }
+
+    /**
+     * Calculate when reminder should be sent
+     */
+    public function getReminderTimeAttribute(): ?\Carbon\Carbon
+    {
+        if (!$this->agenda || !$this->agenda->waktu_mulai) {
+            return null;
+        }
+        
+        return $this->agenda->waktu_mulai->copy()->subMinutes($this->reminder_minutes ?? 60);
     }
 
     public function agenda(): BelongsTo

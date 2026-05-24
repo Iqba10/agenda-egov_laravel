@@ -49,17 +49,20 @@ class NotificationController extends Controller
     public function subscribe(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'channel'      => ['required', 'in:whatsapp,fcm,both'],
-            'agenda_ids'   => ['required', 'array', 'min:1', 'max:10'],
-            'agenda_ids.*' => ['integer', 'exists:agenda,id'],
-            'phone_number' => ['required_if:channel,whatsapp,both', 'nullable', 'string', 'max:20'],
-            'fcm_token'    => ['required_if:channel,fcm,both', 'nullable', 'string', 'max:500'],
-            'nama'         => ['nullable', 'string', 'max:100'],
+            'channel'         => ['required', 'in:whatsapp,fcm,both'],
+            'agenda_ids'      => ['required', 'array', 'min:1', 'max:10'],
+            'agenda_ids.*'    => ['integer', 'exists:agenda,id'],
+            'phone_number'    => ['required_if:channel,whatsapp,both', 'nullable', 'string', 'max:20'],
+            'fcm_token'       => ['required_if:channel,fcm,both', 'nullable', 'string', 'max:500'],
+            'nama'            => ['nullable', 'string', 'max:100'],
+            'reminder_minutes'=> ['nullable', 'integer', 'min:5', 'max:10080'], // 5 min - 7 days
         ], [
             'agenda_ids.required'       => 'Pilih minimal satu agenda.',
             'agenda_ids.min'            => 'Pilih minimal satu agenda.',
             'phone_number.required_if'  => 'Nomor WhatsApp diperlukan untuk channel ini.',
             'fcm_token.required_if'     => 'Izinkan notifikasi browser terlebih dahulu.',
+            'reminder_minutes.min'      => 'Waktu pengingat minimal 5 menit.',
+            'reminder_minutes.max'      => 'Waktu pengingat maksimal 7 hari.',
         ]);
 
         if ($validator->fails()) {
@@ -120,9 +123,13 @@ class NotificationController extends Controller
                 'both'     => 'WhatsApp dan notifikasi browser',
             };
 
+            // Format waktu pengingat untuk pesan
+            $reminderMinutes = $data['reminder_minutes'] ?? 60;
+            $reminderLabel = $this->formatReminderTime($reminderMinutes);
+
             return response()->json([
                 'success' => true,
-                'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} 1 jam sebelum agenda dimulai.",
+                'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} {$reminderLabel} sebelum agenda dimulai.",
                 'results_count' => count($results),
                 'debug' => $debugInfo,
             ]);
@@ -181,5 +188,30 @@ class NotificationController extends Controller
             'success'  => true,
             'services' => $this->reminderService->getServiceStatus(),
         ]);
+    }
+
+    /**
+     * Format reminder time for display
+     */
+    private function formatReminderTime(int $minutes): string
+    {
+        if ($minutes < 60) {
+            return "{$minutes} menit";
+        }
+        
+        $hours = $minutes / 60;
+        
+        if ($minutes % 60 === 0) {
+            if ($hours >= 24) {
+                $days = $hours / 24;
+                return $days == 1 ? "1 hari" : "{$days} hari";
+            }
+            return $hours == 1 ? "1 jam" : "{$hours} jam";
+        }
+        
+        // Mixed hours and minutes
+        $wholeHours = floor($hours);
+        $remainingMinutes = $minutes % 60;
+        return "{$wholeHours} jam {$remainingMinutes} menit";
     }
 }

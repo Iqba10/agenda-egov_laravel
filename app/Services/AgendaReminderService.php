@@ -122,6 +122,7 @@ class AgendaReminderService
                 'nama'               => $data['nama'] ?? null,
                 'fcm_token_id'       => $fcmTokenId,
                 'channel_preference' => $data['channel'] ?? 'whatsapp',
+                'reminder_minutes'   => $data['reminder_minutes'] ?? 60,
             ]
         );
     }
@@ -171,6 +172,7 @@ class AgendaReminderService
         $channel = $data['channel'] ?? 'whatsapp';
         $phoneNumber = $data['phone_number'] ?? null;
         $fcmToken = $data['fcm_token'] ?? null;
+        $reminderMinutes = $data['reminder_minutes'] ?? 60;
 
         \Log::info('subscribeToMultipleAgendas() - START', [
             'channel' => $channel,
@@ -178,6 +180,7 @@ class AgendaReminderService
             'agenda_ids_count' => count($agendaIds),
             'phone_number' => $phoneNumber ? substr($phoneNumber, 0, 6) . '***' : null,
             'fcm_token' => $fcmToken ? substr($fcmToken, 0, 20) . '...' : null,
+            'reminder_minutes' => $reminderMinutes,
             'will_save_whatsapp' => in_array($channel, ['whatsapp', 'both']) && !empty($phoneNumber),
             'will_save_fcm' => in_array($channel, ['fcm', 'both']) && !empty($fcmToken),
         ]);
@@ -191,14 +194,16 @@ class AgendaReminderService
                     \Log::info('Saving to notifikasi_pendaftar', [
                         'agenda_id' => $agendaId,
                         'phone' => substr($phoneNumber, 0, 6) . '***',
+                        'reminder_minutes' => $reminderMinutes,
                     ]);
                     
                     $subscriber = $this->subscribe([
-                        'agenda_id'    => $agendaId,
-                        'phone_number' => $phoneNumber,
-                        'nama'         => $data['nama'] ?? null,
-                        'channel'      => $channel,
-                        'fcm_token'    => $fcmToken, // Pass FCM token too
+                        'agenda_id'       => $agendaId,
+                        'phone_number'    => $phoneNumber,
+                        'nama'            => $data['nama'] ?? null,
+                        'channel'         => $channel,
+                        'fcm_token'       => $fcmToken,
+                        'reminder_minutes'=> $reminderMinutes,
                     ]);
                     
                     \Log::info('Subscriber saved', [

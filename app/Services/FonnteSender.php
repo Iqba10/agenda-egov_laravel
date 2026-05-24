@@ -107,7 +107,10 @@ class FonnteSender
         $typeLabel = match ($type) {
             '24h'       => '⏰ *Pengingat H-1*',
             '6h'        => '🔔 *Pengingat 6 Jam Lagi*',
+            '2h'        => '🔔 *Pengingat 2 Jam Lagi*',
             '1h'        => '⏱️ *Pengingat 1 Jam Lagi*',
+            '30m'       => '⏱️ *Pengingat 30 Menit Lagi*',
+            'custom'    => '🔔 *Pengingat Agenda*',
             default     => '📋 *Konfirmasi Pendaftaran*',
         };
 
@@ -133,10 +136,13 @@ MSG;
     private function buildBulkAgendaMessage(array $agendas, string $type): string
     {
         $typeLabel = match ($type) {
-            '24h'   => '⏰ *Pengingat Agenda H-1*',
-            '6h'    => '🔔 *Pengingat Agenda 6 Jam Lagi*',
-            '1h'    => '⏱️ *Pengingat Agenda 1 Jam Lagi*',
-            default => '📋 *Konfirmasi Pendaftaran Pengingat*',
+            '24h'    => '⏰ *Pengingat Agenda H-1*',
+            '6h'     => '🔔 *Pengingat Agenda 6 Jam Lagi*',
+            '2h'     => '🔔 *Pengingat Agenda 2 Jam Lagi*',
+            '1h'     => '⏱️ *Pengingat Agenda 1 Jam Lagi*',
+            '30m'    => '⏱️ *Pengingat Agenda 30 Menit Lagi*',
+            'custom' => '🔔 *Pengingat Agenda*',
+            default  => '📋 *Konfirmasi Pendaftaran Pengingat*',
         };
 
         $lines = [
