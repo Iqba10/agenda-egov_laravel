@@ -19,6 +19,39 @@ Route::get('/api/agenda-search', [NotificationController::class, 'search'])->nam
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
 
 // Temporary debug endpoint - hapus setelah debugging selesai
+// Test subscribe tanpa CSRF (untuk debug)
+Route::post('/api/debug/test-subscribe-full', function (\Illuminate\Http\Request $request) {
+    try {
+        $data = $request->all();
+        
+        $debugInfo = [
+            'raw_input' => $data,
+            'channel' => $data['channel'] ?? null,
+            'agenda_ids' => $data['agenda_ids'] ?? [],
+            'agenda_ids_type' => gettype($data['agenda_ids'] ?? null),
+            'phone_number' => $data['phone_number'] ?? null,
+            'fcm_token' => isset($data['fcm_token']) ? substr($data['fcm_token'], 0, 20) . '...' : null,
+        ];
+        
+        $service = app(\App\Services\AgendaReminderService::class);
+        $results = $service->subscribeToMultipleAgendas($data);
+        
+        return response()->json([
+            'success' => true,
+            'results_count' => count($results),
+            'results' => $results,
+            'debug' => $debugInfo,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ], 500);
+    }
+})->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 // Jalankan migration manual
 Route::get('/api/debug/run-migrate', function () {
     try {
