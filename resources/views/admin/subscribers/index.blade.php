@@ -140,10 +140,15 @@
                                     'fcm' => 'Browser',
                                     'both' => 'Gabungan',
                                 ];
+                                $hasPlaceholderFcm = $sub->fcmToken
+                                    && str_starts_with($sub->fcmToken->token, 'browser-notification-');
                             @endphp
                             <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {{ $channelColors[$sub->channel_preference] ?? 'bg-slate-100 text-slate-600' }}">
                                 {{ $channelLabels[$sub->channel_preference] ?? $sub->channel_preference }}
                             </span>
+                            @if($hasPlaceholderFcm)
+                            <p class="mt-1 text-[10px] font-medium text-red-500">Token browser tidak valid</p>
+                            @endif
                         </td>
                         <td class="px-4 py-3">
                             <span class="text-xs text-slate-600">{{ $sub->reminder_minutes ?? 60 }} menit</span>
@@ -190,6 +195,11 @@
                                 <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-100 text-emerald-600">
                                     <i data-lucide="check" class="h-3.5 w-3.5"></i>
                                 </span>
+                                @elseif($hasPlaceholderFcm)
+                                <div class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-[10px] font-medium text-red-600">
+                                    <i data-lucide="triangle-alert" class="h-3 w-3"></i>
+                                    Invalid
+                                </div>
                                 @else
                                 <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-amber-100 text-amber-600">
                                     <i data-lucide="clock" class="h-3.5 w-3.5"></i>

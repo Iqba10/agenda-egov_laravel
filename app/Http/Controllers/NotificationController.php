@@ -134,6 +134,11 @@ class NotificationController extends Controller
                 'debug' => $debugInfo,
             ]);
 
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
             \Log::error('NotificationController@subscribe - ERROR', [
                 'message' => $e->getMessage(),
@@ -173,6 +178,11 @@ class NotificationController extends Controller
                 'message' => 'Token terdaftar.',
                 'token_id' => $fcmToken->id,
             ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
             report($e);
             return response()->json(['success' => false, 'message' => 'Gagal mendaftarkan token.'], 500);

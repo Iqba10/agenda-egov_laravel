@@ -574,6 +574,12 @@ let selectedChannel = 'whatsapp';
 let fcmToken = null;
 let selectedReminderMinutes = 60; // Default 1 jam
 
+function hasValidFcmToken(token) {
+    return typeof token === 'string'
+        && token.length > 40
+        && !token.startsWith('browser-notification-');
+}
+
 // Handle reminder time selection
 function handleReminderChange(value) {
     const customSection = document.getElementById('customReminderSection');
@@ -677,17 +683,17 @@ function checkFcmPermission() {
     
     const permission = Notification.permission;
     
-    if (permission === 'granted' && fcmToken) {
+    if (permission === 'granted' && hasValidFcmToken(fcmToken)) {
         // Single mode
         statusIcon.innerHTML = '<i data-lucide="check-circle" class="h-3.5 w-3.5"></i>';
         statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600';
         statusText.textContent = 'Notifikasi diizinkan';
-        statusDesc.textContent = 'Anda akan menerima notifikasi di browser ini';
+        statusDesc.textContent = 'Token browser valid dan siap menerima notifikasi';
         permitBtn.classList.add('hidden');
         // Both mode
         statusIconBoth.innerHTML = '<i data-lucide="check-circle" class="h-3 w-3"></i>';
         statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-600';
-        statusTextBoth.textContent = 'Diizinkan';
+        statusTextBoth.textContent = 'Siap';
         permitBtnBoth.classList.add('hidden');
     } else if (permission === 'denied') {
         // Single mode
@@ -706,12 +712,12 @@ function checkFcmPermission() {
         statusIcon.innerHTML = '<i data-lucide="bell-off" class="h-3.5 w-3.5"></i>';
         statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500';
         statusText.textContent = 'Notifikasi belum diizinkan';
-        statusDesc.textContent = 'Klik tombol untuk mengizinkan';
+        statusDesc.textContent = 'Klik tombol untuk mengizinkan dan membuat token browser';
         permitBtn.classList.remove('hidden');
         // Both mode
         statusIconBoth.innerHTML = '<i data-lucide="bell-off" class="h-3 w-3"></i>';
         statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-500';
-        statusTextBoth.textContent = 'Belum diizinkan';
+        statusTextBoth.textContent = 'Belum siap';
         permitBtnBoth.classList.remove('hidden');
     }
     
@@ -732,13 +738,18 @@ async function requestFcmPermission() {
         const permission = await Notification.requestPermission();
         
         if (permission === 'granted') {
-            // Try to get FCM token
-            if (window.FirebaseNotification) {
-                await window.FirebaseNotification.init();
-                fcmToken = await window.FirebaseNotification.getToken();
-            } else {
-                // Fallback: just mark as granted without FCM
-                fcmToken = 'browser-notification-' + Date.now();
+            if (!window.FirebaseNotification) {
+                throw new Error('Script Firebase tidak termuat di browser ini.');
+            }
+
+            const initialized = await window.FirebaseNotification.init();
+            if (!initialized) {
+                throw new Error('Konfigurasi browser notification belum lengkap. Periksa VAPID key Firebase.');
+            }
+
+            fcmToken = await window.FirebaseNotification.getToken();
+            if (!hasValidFcmToken(fcmToken)) {
+                throw new Error('Gagal membuat token browser yang valid.');
             }
         }
         
@@ -857,7 +868,7 @@ async function submitNotifSubscribe() {
         }
     }
     
-    if (needsFcm && !fcmToken && Notification.permission !== 'granted') {
+    if (needsFcm && !hasValidFcmToken(fcmToken) && Notification.permission !== 'granted') {
         showFormMsg('Izinkan notifikasi browser terlebih dahulu.', false);
         return;
     }
@@ -866,11 +877,19 @@ async function submitNotifSubscribe() {
     btn.innerHTML = '<div class="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Memproses...';
 
     try {
-        if (needsFcm && !fcmToken && window.FirebaseNotification) {
+        if (needsFcm && !hasValidFcmToken(fcmToken) && window.FirebaseNotification) {
             try {
-                await window.FirebaseNotification.init();
+                const initialized = await window.FirebaseNotification.init();
+                if (!initialized) {
+                    showFormMsg('Konfigurasi notifikasi browser belum lengkap. Hubungi admin untuk mengisi VAPID key Firebase.', false);
+                    return;
+                }
                 await window.FirebaseNotification.requestPermission();
                 fcmToken = await window.FirebaseNotification.getToken();
+                if (!hasValidFcmToken(fcmToken)) {
+                    showFormMsg('Gagal mendapatkan token browser yang valid. Coba aktifkan ulang notifikasi.', false);
+                    return;
+                }
             } catch (tokenErr) {
                 console.error('FCM token init error:', tokenErr);
                 showFormMsg('Gagal mendapatkan token browser. Coba aktifkan notifikasi ulang.', false);
@@ -885,7 +904,7 @@ async function submitNotifSubscribe() {
         };
         
         if (phone) payload.phone_number = phone;
-        if (fcmToken) payload.fcm_token = fcmToken;
+        if (hasValidFcmToken(fcmToken)) payload.fcm_token = fcmToken;
 
         const res = await fetch('{{ route('notify.subscribe') }}', {
             method: 'POST',

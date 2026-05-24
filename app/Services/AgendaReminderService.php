@@ -161,6 +161,10 @@ class AgendaReminderService
      */
     public function registerFcmToken(string $token, ?string $deviceName = null): FcmToken
     {
+        if ($this->isPlaceholderFcmToken($token)) {
+            throw new \InvalidArgumentException('Token browser tidak valid. Aktifkan ulang notifikasi sampai token Firebase berhasil dibuat.');
+        }
+
         $fcmToken = FcmToken::updateOrCreate(
             ['token' => $token],
             [
@@ -180,6 +184,10 @@ class AgendaReminderService
      */
     public function subscribeFcmToAgenda(string $token, int $agendaId): bool
     {
+        if ($this->isPlaceholderFcmToken($token)) {
+            throw new \InvalidArgumentException('Token browser tidak valid untuk agenda ini.');
+        }
+
         \Log::info('subscribeFcmToAgenda()', ['agenda_id' => $agendaId, 'token_prefix' => substr($token, 0, 12)]);
         $fcmToken = FcmToken::findByToken($token);
 
@@ -307,5 +315,10 @@ class AgendaReminderService
             'whatsapp' => $this->fonnte->isConfigured(),
             'fcm'      => $this->fcm->isConfigured(),
         ];
+    }
+
+    private function isPlaceholderFcmToken(string $token): bool
+    {
+        return str_starts_with($token, 'browser-notification-') || strlen(trim($token)) < 40;
     }
 }

@@ -48,6 +48,11 @@ const FirebaseNotification = {
             return false;
         }
 
+        if (!this.vapidKey) {
+            console.warn('Firebase not configured - missing VAPID key');
+            return false;
+        }
+
         // Check browser support
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             console.warn('Push notifications not supported');

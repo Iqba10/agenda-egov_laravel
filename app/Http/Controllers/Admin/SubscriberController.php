@@ -21,7 +21,7 @@ class SubscriberController extends Controller
      */
     public function index(Request $request): View
     {
-        $query = NotifikasiPendaftar::with('agenda')
+        $query = NotifikasiPendaftar::with(['agenda', 'fcmToken'])
             ->orderByDesc('created_at');
 
         // Filter by status
