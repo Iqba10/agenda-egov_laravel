@@ -36,12 +36,14 @@ return [
         'credentials_json' => env('FIREBASE_CREDENTIALS_JSON', env('FIREBASE_CREDENTIALS')), // Support both names
 
         // Client-side (browser FCM)
-        'api_key'             => env('VITE_FIREBASE_API_KEY'),
-        'auth_domain'         => env('VITE_FIREBASE_AUTH_DOMAIN'),
-        'storage_bucket'      => env('VITE_FIREBASE_STORAGE_BUCKET'),
-        'messaging_sender_id' => env('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-        'app_id'              => env('VITE_FIREBASE_APP_ID'),
-        'vapid_key'           => env('VITE_FIREBASE_VAPID_KEY'),
+        'client' => [
+            'api_key'             => env('VITE_FIREBASE_API_KEY'),
+            'auth_domain'         => env('VITE_FIREBASE_AUTH_DOMAIN'),
+            'storage_bucket'      => env('VITE_FIREBASE_STORAGE_BUCKET'),
+            'messaging_sender_id' => env('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+            'app_id'              => env('VITE_FIREBASE_APP_ID'),
+            'vapid_key'           => env('VITE_FIREBASE_VAPID_KEY'),
+        ],
     ],
 
 ];

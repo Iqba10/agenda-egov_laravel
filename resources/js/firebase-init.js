@@ -8,22 +8,43 @@ const FirebaseNotification = {
     token: null,
     isSupported: false,
 
-    // Firebase config from environment
-    config: {
-        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-        appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    // Firebase config - read from meta tags (server-rendered) or Vite env
+    getConfig() {
+        // Try meta tags first (works in production)
+        const getMeta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || '';
+        
+        return {
+            apiKey: getMeta('firebase-api-key') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_API_KEY : ''),
+            authDomain: getMeta('firebase-auth-domain') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN : ''),
+            projectId: getMeta('firebase-project-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_PROJECT_ID : ''),
+            storageBucket: getMeta('firebase-storage-bucket') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET : ''),
+            messagingSenderId: getMeta('firebase-messaging-sender-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID : ''),
+            appId: getMeta('firebase-app-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_APP_ID : ''),
+        };
     },
 
-    vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+    getVapidKey() {
+        const meta = document.querySelector('meta[name="firebase-vapid-key"]');
+        return meta?.content || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_VAPID_KEY : '');
+    },
+
+    config: null,
+    vapidKey: null,
 
     async init() {
+        // Load config from meta tags
+        this.config = this.getConfig();
+        this.vapidKey = this.getVapidKey();
+
+        console.log('Firebase config loaded:', {
+            hasApiKey: !!this.config.apiKey,
+            hasProjectId: !!this.config.projectId,
+            hasVapidKey: !!this.vapidKey,
+        });
+
         // Check if Firebase is configured
         if (!this.config.apiKey || !this.config.projectId) {
-            console.warn('Firebase not configured');
+            console.warn('Firebase not configured - missing apiKey or projectId');
             return false;
         }
 
@@ -59,6 +80,7 @@ const FirebaseNotification = {
                 this.showForegroundNotification(payload);
             });
 
+            console.log('Firebase initialized successfully');
             return true;
         } catch (error) {
             console.error('Firebase init error:', error);

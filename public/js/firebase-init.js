@@ -1,26 +1,46 @@
 /**
  * Firebase Cloud Messaging - Client Initialization
  * Agenda eGov - Diskominfo Kabupaten Sambas
- * 
- * Config diinject dari Blade template via window.FIREBASE_CONFIG
  */
 
 const FirebaseNotification = {
     messaging: null,
     token: null,
     isSupported: false,
+
+    // Firebase config - read from meta tags (server-rendered) or Vite env
+    getConfig() {
+        // Try meta tags first (works in production)
+        const getMeta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || '';
+        
+        return {
+            apiKey: getMeta('firebase-api-key') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_API_KEY : ''),
+            authDomain: getMeta('firebase-auth-domain') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN : ''),
+            projectId: getMeta('firebase-project-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_PROJECT_ID : ''),
+            storageBucket: getMeta('firebase-storage-bucket') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET : ''),
+            messagingSenderId: getMeta('firebase-messaging-sender-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID : ''),
+            appId: getMeta('firebase-app-id') || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_APP_ID : ''),
+        };
+    },
+
+    getVapidKey() {
+        const meta = document.querySelector('meta[name="firebase-vapid-key"]');
+        return meta?.content || (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_FIREBASE_VAPID_KEY : '');
+    },
+
     config: null,
     vapidKey: null,
 
     async init() {
-        // Get config from window (injected by Blade template)
-        if (!window.FIREBASE_CONFIG) {
-            console.warn('Firebase config not found. Make sure to set window.FIREBASE_CONFIG');
-            return false;
-        }
+        // Load config from meta tags
+        this.config = this.getConfig();
+        this.vapidKey = this.getVapidKey();
 
-        this.config = window.FIREBASE_CONFIG;
-        this.vapidKey = window.FIREBASE_VAPID_KEY || '';
+        console.log('Firebase config loaded:', {
+            hasApiKey: !!this.config.apiKey,
+            hasProjectId: !!this.config.projectId,
+            hasVapidKey: !!this.vapidKey,
+        });
 
         // Check if Firebase is configured
         if (!this.config.apiKey || !this.config.projectId) {
@@ -43,7 +63,7 @@ const FirebaseNotification = {
             this.messaging = getMessaging(app);
             this.isSupported = true;
 
-            // Register service worker
+            // Register service worker and pass config
             const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
             
             // Send config to service worker
@@ -53,9 +73,6 @@ const FirebaseNotification = {
                     config: this.config,
                 });
             }
-
-            // Wait for service worker to be ready
-            await navigator.serviceWorker.ready;
 
             // Listen for messages when app is in foreground
             onMessage(this.messaging, (payload) => {
@@ -90,10 +107,6 @@ const FirebaseNotification = {
             throw new Error('Firebase belum diinisialisasi');
         }
 
-        if (!this.vapidKey) {
-            throw new Error('VAPID Key tidak dikonfigurasi');
-        }
-
         try {
             const { getToken } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js');
             
@@ -105,7 +118,6 @@ const FirebaseNotification = {
             });
 
             if (this.token) {
-                console.log('FCM Token obtained:', this.token.substring(0, 20) + '...');
                 // Register token with backend
                 await this.registerTokenWithBackend(this.token);
             }
@@ -119,13 +131,11 @@ const FirebaseNotification = {
 
     async registerTokenWithBackend(token) {
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-            
             const response = await fetch('/api/fcm/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || '',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({
@@ -134,9 +144,6 @@ const FirebaseNotification = {
                 }),
             });
 
-            if (response.ok) {
-                console.log('FCM token registered with backend');
-            }
             return response.ok;
         } catch (error) {
             console.error('Error registering FCM token:', error);
@@ -183,5 +190,7 @@ const FirebaseNotification = {
     },
 };
 
-// Export to window for global access
+// Export for use in Blade templates
 window.FirebaseNotification = FirebaseNotification;
+
+export default FirebaseNotification;

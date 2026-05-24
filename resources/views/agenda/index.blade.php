@@ -4,6 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    {{-- Firebase Config --}}
+    <meta name="firebase-api-key" content="{{ config('services.firebase.client.api_key') }}">
+    <meta name="firebase-auth-domain" content="{{ config('services.firebase.client.auth_domain') }}">
+    <meta name="firebase-project-id" content="{{ config('services.firebase.project_id') }}">
+    <meta name="firebase-storage-bucket" content="{{ config('services.firebase.client.storage_bucket') }}">
+    <meta name="firebase-messaging-sender-id" content="{{ config('services.firebase.client.messaging_sender_id') }}">
+    <meta name="firebase-app-id" content="{{ config('services.firebase.client.app_id') }}">
+    <meta name="firebase-vapid-key" content="{{ config('services.firebase.client.vapid_key') }}">
+    
     <title>Agenda eGov - Diskominfo Sambas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
