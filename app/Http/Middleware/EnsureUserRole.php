@@ -15,9 +15,9 @@ class EnsureUserRole
         }
 
         if (! $request->user()->hasAnyRole($roles)) {
-            return redirect()->route('profile.edit')->with('toast', [
+            return redirect()->route('agenda.index')->with('toast', [
                 'type'    => 'warning',
-                'message' => 'Akses terbatas. Anda hanya dapat mengelola profil akun Anda.',
+                'message' => 'Akses terbatas. Fitur manajemen hanya tersedia untuk Admin.',
             ]);
         }
 
