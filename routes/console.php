@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CreateUser;
 use App\Models\Agenda;
 use App\Models\AgendaDocument;
 use Illuminate\Support\Facades\Artisan;
@@ -14,6 +15,35 @@ Schedule::command('agenda:sync-statuses')
 Schedule::command('agenda:send-reminders')
     ->everyMinute()
     ->timezone(config('app.timezone'));
+
+Artisan::command('user:create {name} {email} {username} {password} {role=user}', function () {
+    $name = $this->argument('name');
+    $email = $this->argument('email');
+    $username = $this->argument('username');
+    $password = $this->argument('password');
+    $role = $this->argument('role');
+
+    if (!in_array($role, ['admin', 'user'])) {
+        $this->error('Role must be either "admin" or "user"');
+        return 1;
+    }
+
+    $user = \App\Models\User::create([
+        'name' => $name,
+        'email' => $email,
+        'username' => $username,
+        'password' => \Illuminate\Support\Facades\Hash::make($password),
+        'role' => $role,
+    ]);
+
+    $this->info("User created successfully!");
+    $this->info("Name: {$user->name}");
+    $this->info("Email: {$user->email}");
+    $this->info("Username: {$user->username}");
+    $this->info("Role: {$user->role}");
+
+    return 0;
+})->purpose('Create a new user manually');
 
 Artisan::command('legacy:import {--path=} {--uploads=} {--fresh}', function () {
     $resolvePath = static function (array $candidates, ?string $override = null): ?string {
