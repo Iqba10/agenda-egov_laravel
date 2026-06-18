@@ -27,6 +27,34 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+// Temporary route for creating users (remove in production)
+Route::get('/setup-users', function () {
+    $admin = \App\Models\User::firstOrCreate(
+        ['email' => 'admin@agenda-egov.local'],
+        [
+            'name' => 'Administrator',
+            'username' => 'admin',
+            'password' => \Illuminate\Support\Facades\Hash::make('admin123'),
+            'role' => 'admin',
+        ]
+    );
+
+    $user = \App\Models\User::firstOrCreate(
+        ['email' => 'user@agenda-egov.local'],
+        [
+            'name' => 'User Biasa',
+            'username' => 'user',
+            'password' => \Illuminate\Support\Facades\Hash::make('user123'),
+            'role' => 'user',
+        ]
+    );
+
+    return response()->json([
+        'admin' => ['email' => $admin->email, 'username' => $admin->username, 'password' => 'admin123'],
+        'user' => ['email' => $user->email, 'username' => $user->username, 'password' => 'user123'],
+    ]);
+})->name('setup.users');
+
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminAgendaController::class, 'index'])->name('dashboard');
     Route::get('/agendas/print', [AdminAgendaController::class, 'print'])->name('agendas.print');
