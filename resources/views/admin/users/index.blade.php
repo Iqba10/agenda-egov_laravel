@@ -30,7 +30,7 @@
                                     </div>
                                     <div>
                                         <div class="font-semibold text-slate-900">{{ $user->name }}</div>
-                                        <div class="mt-0.5 text-xs text-slate-500">@{{ $user->username ?? 'ID #'.$user->id }}</div>
+                                        <div class="mt-0.5 text-xs text-slate-500">{{ $user->username ?? 'ID #'.$user->id }}</div>
                                     </div>
                                 </div>
                             </td>

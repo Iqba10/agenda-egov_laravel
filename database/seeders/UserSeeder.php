@@ -10,6 +10,24 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // No users seeded — first registered user via /register gets admin role automatically.
+        User::firstOrCreate(
+            ['email' => 'admin@agenda-egov.local'],
+            [
+                'name' => 'Administrator',
+                'username' => 'admin',
+                'password' => Hash::make('admin123'),
+                'role' => 'admin',
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => 'user@agenda-egov.local'],
+            [
+                'name' => 'User Biasa',
+                'username' => 'user',
+                'password' => Hash::make('user123'),
+                'role' => 'user',
+            ]
+        );
     }
 }
