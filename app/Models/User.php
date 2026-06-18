@@ -51,6 +51,10 @@ class User extends Authenticatable
 
     public function dashboardRoute(): string
     {
-        return route('admin.dashboard');
+        if ($this->role === 'admin') {
+            return route('admin.dashboard');
+        }
+
+        return route('agenda.index');
     }
 }
