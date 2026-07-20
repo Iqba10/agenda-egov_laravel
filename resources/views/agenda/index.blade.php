@@ -120,14 +120,11 @@
                         {{-- User Card with Dropdown --}}
                         <div x-data="{ open: false }" class="relative">
                             <button @click="open = !open" @keydown.escape.window="open = false"
-                                class="inline-flex items-center gap-2.5 px-3 py-1.5 bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-semibold rounded-lg transition-colors backdrop-blur-sm">
-                                <span class="flex h-8 w-8 items-center justify-center rounded-full {{ Auth::user()->role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400' }} font-bold text-xs">
+                                class="inline-flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-sm font-semibold rounded-lg transition-colors shadow-sm">
+                                <span class="flex h-7 w-7 items-center justify-center rounded-full {{ Auth::user()->role === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700' }} font-bold text-[11px] leading-none">
                                     {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
                                 </span>
-                                <span class="hidden sm:inline text-white">{{ Auth::user()->name }}</span>
-                                <span class="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded {{ Auth::user()->role === 'admin' ? 'bg-amber-400/20 text-amber-300' : 'bg-sky-400/20 text-sky-300' }}">
-                                    {{ Auth::user()->role }}
-                                </span>
+                                <span class="hidden sm:inline text-slate-700">{{ Auth::user()->name }}</span>
                                 <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-slate-400 transition-transform" :class="open && 'rotate-180'"></i>
                             </button>
 
@@ -552,7 +549,7 @@
                 {{-- Custom input (hidden by default) --}}
                 <div id="customReminderSection" class="mt-2 hidden">
                     <div class="flex gap-2 items-center">
-                        <input id="customReminderValue" type="number" min="5" max="10080" value="60" 
+                        <input id="customReminderValue" type="number" min="1" max="10080" value="1" 
                                class="w-20 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
                         <select id="customReminderUnit" onchange="updateCustomReminder()"
                                 class="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 bg-white">
@@ -562,6 +559,10 @@
                         </select>
                         <span class="text-xs text-slate-500">sebelum</span>
                     </div>
+                    <p id="immediateHint" class="hidden mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
+                        <i data-lucide="zap" class="h-3 w-3"></i>
+                        Pengingat ≤15 menit akan dikirim langsung saat subscribe.
+                    </p>
                 </div>
             </div>
 
@@ -636,6 +637,7 @@ function hasValidFcmToken(token) {
 // Handle reminder time selection
 function handleReminderChange(value) {
     const customSection = document.getElementById('customReminderSection');
+    const immediateHint = document.getElementById('immediateHint');
     
     if (value === 'custom') {
         customSection.classList.remove('hidden');
@@ -644,16 +646,27 @@ function handleReminderChange(value) {
         customSection.classList.add('hidden');
         selectedReminderMinutes = parseInt(value);
     }
+    
+    // Show immediate hint if <= 15 minutes
+    if (immediateHint) {
+        immediateHint.classList.toggle('hidden', selectedReminderMinutes > 15);
+    }
 }
 
 function updateCustomReminder() {
-    const value = parseInt(document.getElementById('customReminderValue').value) || 60;
+    const value = parseInt(document.getElementById('customReminderValue').value) || 1;
     const unit = parseInt(document.getElementById('customReminderUnit').value) || 1;
     selectedReminderMinutes = value * unit;
     
-    // Validate: min 5 minutes, max 7 days (10080 minutes)
-    if (selectedReminderMinutes < 5) selectedReminderMinutes = 5;
+    // Validate: min 1 minute, max 7 days (10080 minutes)
+    if (selectedReminderMinutes < 1) selectedReminderMinutes = 1;
     if (selectedReminderMinutes > 10080) selectedReminderMinutes = 10080;
+    
+    // Show immediate hint if <= 15 minutes
+    const immediateHint = document.getElementById('immediateHint');
+    if (immediateHint) {
+        immediateHint.classList.toggle('hidden', selectedReminderMinutes > 15);
+    }
 }
 
 const STATUS_STYLES = {

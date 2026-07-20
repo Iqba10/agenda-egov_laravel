@@ -61,7 +61,7 @@ class NotificationController extends Controller
             'agenda_ids.min'            => 'Pilih minimal satu agenda.',
             'phone_number.required_if'  => 'Nomor WhatsApp diperlukan untuk channel ini.',
             'fcm_token.required_if'     => 'Izinkan notifikasi browser terlebih dahulu.',
-            'reminder_minutes.min'      => 'Waktu pengingat minimal 5 menit.',
+            'reminder_minutes.min'      => 'Waktu pengingat minimal 1 menit.',
             'reminder_minutes.max'      => 'Waktu pengingat maksimal 7 hari.',
         ]);
 
