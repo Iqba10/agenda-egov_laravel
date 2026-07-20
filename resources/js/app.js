@@ -1,4 +1,9 @@
 import './bootstrap';
+import Alpine from 'alpinejs';
+
+// Start Alpine.js globally
+window.Alpine = Alpine;
+Alpine.start();
 
 const AppUI = {
   init() {

@@ -115,10 +115,63 @@
                         <i data-lucide="bell" class="h-4 w-4"></i>
                         Dapatkan Notifikasi
                     </button>
-                    <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg transition-colors">
-                        <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
-                        Panel Admin
-                    </a>
+
+                    @auth
+                        {{-- User Card with Dropdown --}}
+                        <div x-data="{ open: false }" class="relative">
+                            <button @click="open = !open" @keydown.escape.window="open = false"
+                                class="inline-flex items-center gap-2.5 px-3 py-1.5 bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-semibold rounded-lg transition-colors backdrop-blur-sm">
+                                <span class="flex h-8 w-8 items-center justify-center rounded-full {{ Auth::user()->role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400' }} font-bold text-xs">
+                                    {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                                </span>
+                                <span class="hidden sm:inline text-white">{{ Auth::user()->name }}</span>
+                                <span class="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded {{ Auth::user()->role === 'admin' ? 'bg-amber-400/20 text-amber-300' : 'bg-sky-400/20 text-sky-300' }}">
+                                    {{ Auth::user()->role }}
+                                </span>
+                                <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-slate-400 transition-transform" :class="open && 'rotate-180'"></i>
+                            </button>
+
+                            {{-- Dropdown --}}
+                            <div x-show="open" x-transition:enter="transition ease-out duration-150"
+                                x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                x-transition:leave="transition ease-in duration-100"
+                                x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                @click.away="open = false"
+                                class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50">
+                                <div class="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                                    <p class="text-sm font-bold text-slate-800 truncate">{{ Auth::user()->name }}</p>
+                                    <p class="text-xs text-slate-500 truncate">{{ Auth::user()->email }}</p>
+                                </div>
+                                <div class="py-1.5">
+                                    @if(Auth::user()->role === 'admin')
+                                        <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i data-lucide="layout-dashboard" class="h-4 w-4 text-slate-400"></i>
+                                            Panel Admin
+                                        </a>
+                                    @endif
+                                    <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                                        <i data-lucide="user" class="h-4 w-4 text-slate-400"></i>
+                                        Profil Saya
+                                    </a>
+                                    <div class="my-1 border-t border-slate-100"></div>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit" class="flex items-center gap-2.5 w-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                                            <i data-lucide="log-out" class="h-4 w-4"></i>
+                                            Keluar
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <a href="{{ route('login') }}" class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg transition-colors">
+                            <i data-lucide="log-in" class="h-4 w-4"></i>
+                            Masuk Dashboard
+                        </a>
+                    @endauth
                 </div>
             </div>
 
