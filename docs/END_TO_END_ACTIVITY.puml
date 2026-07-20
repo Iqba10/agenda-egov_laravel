@@ -1,0 +1,69 @@
+@startuml
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #333333
+    FontColor #000000
+    FontSize 10
+}
+skinparam swimlaneBorderColor #CCCCCC
+skinparam swimlaneBackgroundColor #F5F5F5
+skinparam activityBorderThickness 1
+skinparam arrowColor #333333
+
+|Public|
+start
+:Buka Halaman Agenda;
+
+repeat
+    :Lihat/Filter/Search Agenda;
+    :Lihat Widget Cuaca;
+    
+    if (Detail/Download?) then (yes)
+        :Lihat Detail & Dokumen;
+        :Fetch → Blob → Download;
+    endif
+    
+    if (Subscribe?) then (yes)
+        if (Belum Login?) then (yes)
+            |User|
+            :Login;
+        endif
+        :Input Nama, No HP, Channel;
+        :Simpan ke DB;
+    endif
+    
+    if (Login/Register?) then (yes)
+        |User|
+        if (Register?) then (yes)
+            if (REGISTRATION_OPEN?) then (yes)
+                :Register → Auto Login;
+            endif
+        endif
+        
+        if (Role Admin?) then (yes)
+            |Admin|
+            :Dashboard;
+            :CRUD Agenda + Dokumen;
+            :Manajemen User + Role;
+            :Test WA/FCM;
+            :Cetak Laporan;
+        endif
+        
+        :Kelola Profil;
+        :Logout;
+    endif
+repeat while (Lanjut?)
+
+|Scheduler|
+:Trigger (5 menit);
+:Query reminders pending;
+
+if (Ada Pending?) then (yes)
+    repeat
+        :Kirim WA/FCM;
+        :Update is_sent / Log Error;
+    repeat while (Masih ada?)
+endif
+
+stop
+@enduml

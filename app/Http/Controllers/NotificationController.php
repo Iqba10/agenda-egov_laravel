@@ -55,7 +55,7 @@ class NotificationController extends Controller
             'phone_number'    => ['required_if:channel,whatsapp,both', 'nullable', 'string', 'max:20'],
             'fcm_token'       => ['required_if:channel,fcm,both', 'nullable', 'string', 'max:500'],
             'nama'            => ['nullable', 'string', 'max:100'],
-            'reminder_minutes'=> ['nullable', 'integer', 'min:5', 'max:10080'], // 5 min - 7 days
+            'reminder_minutes'=> ['nullable', 'integer', 'min:1', 'max:10080'], // 1 min - 7 days
         ], [
             'agenda_ids.required'       => 'Pilih minimal satu agenda.',
             'agenda_ids.min'            => 'Pilih minimal satu agenda.',

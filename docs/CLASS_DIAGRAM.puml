@@ -1,0 +1,198 @@
+@startuml
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #333333
+    FontColor #000000
+    FontSize 10
+}
+skinparam classAttribute {
+    BackgroundColor #F5F5F5
+    BorderColor #CCCCCC
+}
+
+package "Models" {
+    class "User" as User {
+        - id : BIGINT
+        - name : VARCHAR
+        - email : VARCHAR
+        - password : VARCHAR
+        - role : ENUM
+        --
+        + agendas() : HasMany
+    }
+
+    class "Agenda" as Agenda {
+        - id : INTEGER
+        - slug : VARCHAR
+        - jenis_agenda : ENUM
+        - perihal_kegiatan : TEXT
+        - waktu_mulai : DATETIME
+        - waktu_selesai : DATETIME
+        - tempat : VARCHAR
+        - asal_surat : VARCHAR
+        - status : ENUM
+        --
+        + documents() : HasMany
+        + reminders() : HasMany
+        + subscribers() : HasMany
+        + computedStatus() : string
+        + getEffectiveStatusAttribute() : string
+        + getStatusBadgeClassAttribute() : string
+    }
+
+    class "AgendaDocument" as AgendaDocument {
+        - id : BIGINT
+        - agenda_id : INTEGER
+        - nama_file : VARCHAR
+        - original_name : VARCHAR
+        --
+        + agenda() : BelongsTo
+        + getUrlAttribute() : string
+        + getDownloadUrlAttribute() : string
+        + getTypeAttribute() : string
+    }
+
+    class "AgendaReminder" as AgendaReminder {
+        - id : BIGINT
+        - nama : VARCHAR
+        - phone_number : VARCHAR
+        - channel : ENUM
+        - is_sent : BOOLEAN
+        - agenda_id : INTEGER
+        --
+        + agenda() : BelongsTo
+        + markAsSent() : void
+        + scopePending() : Builder
+    }
+
+    class "FcmToken" as FcmToken {
+        - id : BIGINT
+        - token : VARCHAR
+        - device_name : VARCHAR
+        - subscribed_agendas : JSON
+        - is_active : BOOLEAN
+        --
+        + subscribeToAgenda(int) : void
+        + unsubscribeFromAgenda(int) : void
+        + isSubscribedTo(int) : bool
+        + markReminderSent(int) : void
+    }
+
+    class "NotifikasiPendaftar" as NotifikasiPendaftar {
+        - id : BIGINT
+        - agenda_id : INTEGER
+        - nama : VARCHAR
+        - phone_number : VARCHAR
+        - fcm_token_id : BIGINT
+        - channel_preference : ENUM
+        - reminder_minutes : INTEGER
+        - whatsapp_sent : BOOLEAN
+        - fcm_sent : BOOLEAN
+        --
+        + agenda() : BelongsTo
+        + fcmToken() : BelongsTo
+        + markWhatsappSent() : void
+        + markFcmSent() : void
+        + isComplete() : bool
+        + getReminderTimeAttribute() : Carbon
+    }
+}
+
+package "Services" {
+    class "AgendaReminderService" as AgendaReminderService {
+        - fonnte : FonnteSender
+        - fcm : FcmSender
+        --
+        + sendToSubscriber(NotifikasiPendaftar, string) : bool
+        + sendToReminder(AgendaReminder) : bool
+        + subscribe(array) : NotifikasiPendaftar
+        + registerFcmToken(string) : FcmToken
+        + subscribeFcmToAgenda(string, int) : bool
+        + subscribeToMultipleAgendas(array) : array
+        + getServiceStatus() : array
+    }
+
+    class "FonnteSender" as FonnteSender {
+        - apiUrl : STRING
+        - token : STRING
+        - device : STRING
+        --
+        + send(string, string) : array
+        + sendAgendaReminder(string, Agenda, string) : bool
+        + sendBulkAgendaReminder(string, array, string) : bool
+        + isConfigured() : bool
+        - normalizePhone(string) : string
+    }
+
+    class "FcmSender" as FcmSender {
+        - projectId : STRING
+        - credentialsPath : STRING
+        - accessToken : STRING
+        --
+        + send(string, string, string, array) : bool
+        + sendToToken(string, string, string, array) : array
+        + sendToTopic(string, string, string, array) : array
+        + sendAgendaReminder(string, Agenda, string) : bool
+        + subscribeToTopic(string, string) : bool
+        + isConfigured() : bool
+        - getAccessToken() : string
+    }
+}
+
+package "Controllers" {
+    class "AgendaController" as AgendaController {
+        + index() : View
+        + create() : View
+        + store(Request) : Redirect
+        + show(Agenda) : View
+        + edit(Agenda) : View
+        + update(Request, Agenda) : Redirect
+        + destroy(Agenda) : Redirect
+        + uploadDocument(Request, Agenda) : Redirect
+        + deleteDocument(AgendaDocument) : Redirect
+    }
+
+    class "NotificationController" as NotificationController {
+        + subscribe(Request) : JsonResponse
+        + registerFcmToken(Request) : JsonResponse
+    }
+
+    class "NotificationTestController" as NotificationTestController {
+        + index() : View
+        + testWhatsapp(Request) : JsonResponse
+        + testFcm(Request) : JsonResponse
+        + broadcast(Request) : JsonResponse
+        + getStatus() : JsonResponse
+    }
+
+    class "UserController" as UserController {
+        + index() : View
+        + store(Request) : Redirect
+        + update(Request, User) : Redirect
+        + destroy(User) : Redirect
+    }
+}
+
+' Relationships
+Agenda "1" *-- "many" AgendaDocument : has
+Agenda "1" *-- "many" AgendaReminder : has
+Agenda "1" *-- "many" NotifikasiPendaftar : has
+AgendaDocument "many" --> "1" Agenda : belongs to
+AgendaReminder "many" --> "1" Agenda : belongs to
+NotifikasiPendaftar "many" --> "1" Agenda : belongs to
+FcmToken "1" *-- "many" NotifikasiPendaftar : has
+NotifikasiPendaftar "many" --> "1" FcmToken : belongs to
+
+AgendaReminderService --> FonnteSender : uses
+AgendaReminderService --> FcmSender : uses
+AgendaReminderService --> Agenda : uses
+AgendaReminderService --> NotifikasiPendaftar : uses
+AgendaReminderService --> FcmToken : uses
+
+AgendaController --> Agenda : manages
+NotificationController --> AgendaReminderService : uses
+NotificationTestController --> FonnteSender : uses
+NotificationTestController --> FcmSender : uses
+NotificationTestController --> AgendaReminderService : uses
+
+@enduml

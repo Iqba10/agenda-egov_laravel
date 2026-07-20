@@ -1,0 +1,144 @@
+@startuml
+skinparam entity {
+    BackgroundColor #FFFFFF
+    BorderColor #333333
+    FontColor #000000
+    FontSize 10
+}
+skinparam entityAttribute {
+    BackgroundColor #F5F5F5
+    BorderColor #CCCCCC
+}
+skinparam arrowColor #333333
+
+entity "users" as users {
+    *id : BIGINT <<generated>>
+    --
+    *name : VARCHAR(255)
+    *email : VARCHAR(255) <<unique>>
+    email_verified_at : TIMESTAMP <<nullable>>
+    *password : VARCHAR(255)
+    *role : ENUM('admin','user')
+    remember_token : VARCHAR(100) <<nullable>>
+    --
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "agenda" as agenda {
+    *id : INTEGER <<generated>>
+    --
+    *jenis_agenda : ENUM('eksternal','internal')
+    *perihal_kegiatan : TEXT
+    *waktu_mulai : DATETIME
+    *waktu_selesai : DATETIME
+    *tempat : VARCHAR(255)
+    *asal_surat : VARCHAR(255)
+    *pakaian : VARCHAR(100)
+    disposisi : TEXT <<nullable>>
+    *petugas_ditugaskan : VARCHAR(255)
+    *status : ENUM('terjadwal','selesai','dibatalkan')
+    diinput_oleh : VARCHAR(100) <<nullable>>
+    --
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "dokumen_agenda" as dokumen_agenda {
+    *id : BIGINT <<generated>>
+    --
+    *agenda_id : INTEGER <<FK>>
+    *nama_file : VARCHAR(255)
+    *original_name : VARCHAR(255)
+    --
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "agenda_reminders" as agenda_reminders {
+    *id : BIGINT <<generated>>
+    --
+    *nama : VARCHAR(100)
+    *phone_number : VARCHAR(20)
+    *channel : ENUM('whatsapp','fcm')
+    *is_sent : BOOLEAN
+    sent_at : TIMESTAMP <<nullable>>
+    *agenda_id : INTEGER <<FK>>
+    --
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "fcm_tokens" as fcm_tokens {
+    *id : BIGINT <<generated>>
+    --
+    *token : VARCHAR(500) <<unique>>
+    device_name : VARCHAR(255) <<nullable>>
+    subscribed_agendas : JSON <<nullable>>
+    *is_active : BOOLEAN
+    --
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "notifikasi_pendaftar" as notifikasi_pendaftar {
+    *id : BIGINT <<generated>>
+    --
+    *agenda_id : INTEGER <<FK>>
+    nama : VARCHAR(100) <<nullable>>
+    phone_number : VARCHAR(20) <<nullable>>
+    fcm_token_id : BIGINT <<nullable>>
+    *channel_preference : ENUM('whatsapp','fcm','both')
+    whatsapp_sent : BOOLEAN
+    whatsapp_sent_at : TIMESTAMP <<nullable>>
+    fcm_sent : BOOLEAN
+    fcm_sent_at : TIMESTAMP <<nullable>>
+    --
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "sessions" as sessions {
+    *id : VARCHAR(191) <<PK>>
+    --
+    user_id : BIGINT <<nullable>>
+    ip_address : VARCHAR(45) <<nullable>>
+    user_agent : TEXT <<nullable>>
+    payload : LONGTEXT
+    *last_activity : INTEGER
+}
+
+entity "password_reset_tokens" as password_reset_tokens {
+    *email : VARCHAR(255) <<PK>>
+    --
+    *token : VARCHAR(255)
+    created_at : TIMESTAMP <<nullable>>
+}
+
+entity "jobs" as jobs {
+    *id : BIGINT <<generated>>
+    --
+    queue : VARCHAR(255) <<nullable>>
+    payload : LONGTEXT
+    attempts : UNSIGNEDINT
+    reserved_at : UNSIGNEDINT <<nullable>>
+    available_at : UNSIGNEDINT
+    created_at : UNSIGNEDINT
+}
+
+entity "cache" as cache {
+    *key : VARCHAR(255) <<PK>>
+    --
+    value : MEDIUMTEXT
+    expiration : INTEGER
+}
+
+' Relationships
+agenda ||--o{ dokumen_agenda : "has many"
+agenda ||--o{ agenda_reminders : "has many"
+agenda ||--o{ notifikasi_pendaftar : "has many"
+fcm_tokens ||--o{ notifikasi_pendaftar : "has many"
+users ||--o{ sessions : "has many"
+users ||--o{ password_reset_tokens : "has many"
+
+@enduml

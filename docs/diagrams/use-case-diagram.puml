@@ -1,0 +1,79 @@
+@startuml Use Case Diagram Sistem Agenda E-Gov
+
+!define LIGHTPURPLE #ece6fb
+!define DARKPURPLE #8878c3
+!define GRAY #cccccc
+
+skinparam backgroundColor #ffffff
+skinparam useCase {
+    BackgroundColor LIGHTPURPLE
+    BorderColor DARKPURPLE
+    FontColor #333333
+    FontName SansSerif
+    FontSize 11
+}
+skinparam actor {
+    BorderColor #333333
+    FontColor #333333
+    FontName SansSerif
+    FontSize 11
+}
+skinparam arrowColor GRAY
+skinparam lineColor GRAY
+skinparam rectangle {
+    BackgroundColor #ffffff
+    BorderColor #333333
+    FontColor #333333
+    FontName SansSerif
+    FontSize 12
+}
+
+title Use Case Diagram Sistem Agenda E-Gov
+
+actor "Admin" as Admin
+actor "User Biasa" as User
+actor "Public User" as Public
+
+rectangle "Sistem Agenda E-Gov" {
+    usecase "Login" as UC1
+    usecase "Logout" as UC2
+    usecase "View Profile" as UC3
+    usecase "Update Profile" as UC4
+    usecase "Manage Agenda" as UC5
+    usecase "Manage Documents" as UC6
+    usecase "Manage Users" as UC7
+    usecase "Test WhatsApp" as UC8
+    usecase "Test FCM" as UC9
+    usecase "View Subscribers" as UC10
+    usecase "Resend Notifications" as UC11
+    usecase "Register" as UC12
+    usecase "View Public Agenda" as UC13
+    usecase "View Agenda Detail" as UC14
+    usecase "Subscribe Notifications" as UC15
+}
+
+Admin -- UC1
+Admin -- UC2
+Admin -- UC3
+Admin -- UC4
+Admin -- UC5
+Admin -- UC6
+Admin -- UC7
+Admin -- UC8
+Admin -- UC9
+Admin -- UC10
+Admin -- UC11
+
+User -- UC1
+User -- UC2
+User -- UC3
+User -- UC4
+
+Public -- UC12
+Public -- UC13
+Public -- UC14
+Public -- UC15
+
+UC5 ..> UC6 : <<include>>
+
+@enduml

@@ -32,15 +32,22 @@
                                class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-lg transition">
                                 <i data-lucide="pencil" class="h-3.5 w-3.5"></i> Edit
                             </a>
+                            <a href="{{ route('admin.dashboard') }}"
+                               class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm">
+                                <i data-lucide="layout-dashboard" class="h-3.5 w-3.5"></i> Panel Admin
+                            </a>
+                        @else
+                            {{-- User biasa — hanya lihat Profil --}}
+                            <a href="{{ route('profile.edit') }}"
+                               class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-lg transition">
+                                <i data-lucide="user-round" class="h-3.5 w-3.5"></i> Profil Saya
+                            </a>
                         @endif
-                        <a href="{{ route('admin.dashboard') }}"
-                           class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm">
-                            <i data-lucide="layout-dashboard" class="h-3.5 w-3.5"></i> Panel Admin
-                        </a>
                     @else
+                        {{-- Non-logged in — tombol Masuk Dashboard --}}
                         <a href="{{ route('login') }}"
-                           class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-lg transition">
-                            <i data-lucide="log-in" class="h-3.5 w-3.5"></i> Login
+                           class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm">
+                            <i data-lucide="log-in" class="h-3.5 w-3.5"></i> Masuk Dashboard
                         </a>
                     @endauth
                 </div>

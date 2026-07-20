@@ -26,9 +26,11 @@ class SendAgendaReminders extends Command
         $this->newLine();
 
         // Cari subscribers yang perlu dikirim notifikasi
+        // Skip yang is_immediate (sudah dikirim langsung saat subscribe)
         // Include agenda yang baru mulai (grace period 30 menit)
         $graceMinutes = 30;
         $subscribers = NotifikasiPendaftar::with('agenda')
+            ->where('is_immediate', false) // Skip immediate — sudah dikirim langsung
             ->whereHas('agenda', function ($q) use ($now, $graceMinutes) {
                 $q->where('status', '!=', 'dibatalkan')
                   // Include agenda yang sudah mulai tapi masih dalam grace period
@@ -137,6 +139,7 @@ class SendAgendaReminders extends Command
      */
     private function getReminderType(int $minutes): string
     {
+        if ($minutes <= 15) return '15m';
         if ($minutes <= 30) return '30m';
         if ($minutes <= 60) return '1h';
         if ($minutes <= 120) return '2h';

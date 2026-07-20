@@ -201,6 +201,7 @@ class AgendaReminderService
 
     /**
      * Subscribe ke multiple agenda sekaligus
+     * Jika reminder_minutes <= 15, kirim IMMEDIATE (langsung saat subscribe)
      */
     public function subscribeToMultipleAgendas(array $data): array
     {
@@ -210,6 +211,7 @@ class AgendaReminderService
         $phoneNumber = $data['phone_number'] ?? null;
         $fcmToken = $data['fcm_token'] ?? null;
         $reminderMinutes = $data['reminder_minutes'] ?? 60;
+        $isImmediate = $reminderMinutes <= 15;
 
         \Log::info('subscribeToMultipleAgendas() - START', [
             'channel' => $channel,
@@ -218,6 +220,7 @@ class AgendaReminderService
             'phone_number' => $phoneNumber ? substr($phoneNumber, 0, 6) . '***' : null,
             'fcm_token' => $fcmToken ? substr($fcmToken, 0, 20) . '...' : null,
             'reminder_minutes' => $reminderMinutes,
+            'is_immediate' => $isImmediate,
             'will_save_whatsapp' => in_array($channel, ['whatsapp', 'both']) && !empty($phoneNumber),
             'will_save_fcm' => in_array($channel, ['fcm', 'both']) && !empty($fcmToken),
         ]);
@@ -232,6 +235,7 @@ class AgendaReminderService
                         'agenda_id' => $agendaId,
                         'phone' => substr($phoneNumber, 0, 6) . '***',
                         'reminder_minutes' => $reminderMinutes,
+                        'is_immediate' => $isImmediate,
                     ]);
                     
                     $subscriber = $this->subscribe([
@@ -241,14 +245,25 @@ class AgendaReminderService
                         'channel'         => $channel,
                         'fcm_token'       => $fcmToken,
                         'reminder_minutes'=> $reminderMinutes,
+                        'is_immediate'    => $isImmediate,
                     ]);
                     
                     \Log::info('Subscriber saved', [
                         'subscriber_id' => $subscriber->id,
                         'agenda_id' => $subscriber->agenda_id,
+                        'is_immediate' => $subscriber->is_immediate,
                     ]);
                     
                     $results[] = $subscriber;
+
+                    // Jika immediate, kirim langsung sekarang
+                    if ($isImmediate) {
+                        \Log::info('IMMEDIATE MODE - sending now', [
+                            'subscriber_id' => $subscriber->id,
+                            'agenda_id' => $agendaId,
+                        ]);
+                        $this->sendImmediate($subscriber);
+                    }
                 }
 
                 // Untuk FCM/both, subscribe token ke agenda
@@ -263,7 +278,6 @@ class AgendaReminderService
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                // Don't re-throw, continue with other agendas
             }
         }
 
@@ -272,6 +286,60 @@ class AgendaReminderService
         ]);
 
         return $results;
+    }
+
+    /**
+     * Kirim notifikasi IMMEDIATE — untuk reminder <= 15 menit
+     * Langsung kirim tanpa nunggu scheduler
+     */
+    public function sendImmediate(NotifikasiPendaftar $subscriber): bool
+    {
+        if ($subscriber->immediate_sent) {
+            \Log::info('Immediate already sent, skipping', ['subscriber_id' => $subscriber->id]);
+            return true;
+        }
+
+        $agenda = $subscriber->agenda;
+        if (!$agenda || !$agenda->waktu_mulai) {
+            \Log::warning('Cannot send immediate - no agenda', ['subscriber_id' => $subscriber->id]);
+            return false;
+        }
+
+        $success = false;
+
+        // Kirim WhatsApp
+        if (in_array($subscriber->channel_preference, ['whatsapp', 'both']) && $subscriber->phone_number) {
+            $waResult = $this->fonnte->sendAgendaReminder($subscriber->phone_number, $agenda, 'immediate');
+            if ($waResult) {
+                $subscriber->markWhatsappSent();
+                $success = true;
+            }
+        }
+
+        // Kirim FCM
+        if (in_array($subscriber->channel_preference, ['fcm', 'both']) && $subscriber->fcm_token_id) {
+            $fcmToken = \App\Models\FcmToken::find($subscriber->fcm_token_id);
+            if ($fcmToken && $fcmToken->token) {
+                $fcmResult = $this->fcm->sendAgendaReminder($fcmToken->token, $agenda, 'immediate');
+                if ($fcmResult) {
+                    $subscriber->markFcmSent();
+                    $success = true;
+                }
+            }
+        }
+
+        // Tandai immediate sudah dikirim
+        $subscriber->update([
+            'immediate_sent' => true,
+            'immediate_sent_at' => now(),
+        ]);
+
+        \Log::info('Immediate sent', [
+            'subscriber_id' => $subscriber->id,
+            'success' => $success,
+        ]);
+
+        return $success;
     }
 
     /**

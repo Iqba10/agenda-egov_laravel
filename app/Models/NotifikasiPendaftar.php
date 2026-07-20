@@ -15,7 +15,10 @@ class NotifikasiPendaftar extends Model
         'phone_number',
         'fcm_token_id',
         'channel_preference',
-        'reminder_minutes', // Waktu pengingat dalam menit sebelum agenda
+        'reminder_minutes',
+        'is_immediate',
+        'immediate_sent',
+        'immediate_sent_at',
         'status',
         'whatsapp_sent',
         'whatsapp_sent_at',
@@ -28,6 +31,9 @@ class NotifikasiPendaftar extends Model
     {
         return [
             'reminder_minutes' => 'integer',
+            'is_immediate'     => 'boolean',
+            'immediate_sent'   => 'boolean',
+            'immediate_sent_at'=> 'datetime',
             'whatsapp_sent'    => 'boolean',
             'whatsapp_sent_at' => 'datetime',
             'fcm_sent'         => 'boolean',
