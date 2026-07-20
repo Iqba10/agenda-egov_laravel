@@ -591,7 +591,7 @@
             </div>
 
             {{-- Agenda list --}}
-            <div id="notifAgendaList" class="flex-1 overflow-y-auto px-4 pb-2 space-y-1.5 min-h-0">
+            <div id="notifAgendaList" class="overflow-y-auto px-4 pb-2 space-y-1.5" style="max-height: 12rem;">
                 <div class="flex items-center justify-center py-6">
                     <div class="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
