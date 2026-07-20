@@ -413,7 +413,7 @@
 <div id="notifModal" class="fixed inset-0 z-[60] hidden items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onclick="closeNotifModal()"></div>
 
-    <div class="relative w-full sm:w-[640px] max-h-[90vh] sm:max-h-[600px] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-slate-200/80 overflow-hidden"
+    <div class="relative w-full sm:w-[640px] max-h-[95vh] sm:max-h-[85vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-slate-200/80 overflow-hidden"
          style="animation: slideUp .22s cubic-bezier(.22,1,.36,1);">
 
         {{-- macOS title bar --}}
@@ -428,11 +428,11 @@
             <span class="flex-1 text-center text-xs font-semibold text-slate-500 -ml-10">Pengingat Agenda</span>
         </div>
 
-        {{-- Body --}}
-        <div class="flex flex-col flex-1 overflow-hidden">
+        {{-- Scrollable body --}}
+        <div class="flex-1 overflow-y-auto min-h-0">
 
             {{-- Header --}}
-            <div class="px-4 pt-4 pb-3 shrink-0">
+            <div class="px-4 pt-4 pb-3">
                 <div class="flex items-center gap-2.5 mb-2">
                     <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600">
                         <i data-lucide="bell-ring" class="h-4 w-4 text-white"></i>
@@ -445,7 +445,7 @@
             </div>
 
             {{-- Channel Selection --}}
-            <div class="px-4 pb-3 shrink-0">
+            <div class="px-4 pb-3">
                 <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Metode Pengingat</p>
                 <div class="flex gap-2">
                     <button type="button" onclick="setChannel('whatsapp')" id="channelWhatsapp"
@@ -467,7 +467,7 @@
             </div>
 
             {{-- Input Section Container - switches between single column and grid for "both" --}}
-            <div id="inputSectionContainer" class="px-4 pb-3 shrink-0">
+            <div id="inputSectionContainer" class="px-4 pb-3">
                 {{-- Single mode: WhatsApp only --}}
                 <div id="waInputSection">
                     <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Nomor WhatsApp</label>
@@ -531,7 +531,7 @@
             </div>
 
             {{-- Waktu Pengingat --}}
-            <div class="px-4 pb-3 shrink-0">
+            <div class="px-4 pb-3">
                 <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Waktu Pengingat</label>
                 <div class="flex gap-2">
                     <select id="reminderMinutes" onchange="handleReminderChange(this.value)"
@@ -579,7 +579,7 @@
             </div>
 
             {{-- Search --}}
-            <div class="px-4 pb-2.5 shrink-0 border-t border-slate-100 pt-3">
+            <div class="px-4 pb-2.5 border-t border-slate-100 pt-3">
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i data-lucide="search" class="h-3.5 w-3.5 text-slate-400"></i>
@@ -598,12 +598,12 @@
             </div>
 
             {{-- Selected count --}}
-            <div class="px-4 py-1.5 shrink-0 border-t border-slate-100 bg-slate-50/60">
+            <div class="px-4 py-1.5 border-t border-slate-100 bg-slate-50/60">
                 <p id="notifSelectedCount" class="text-[11px] font-semibold text-slate-500">0 agenda dipilih</p>
             </div>
 
             {{-- Submit --}}
-            <div class="px-4 py-3 shrink-0 border-t border-slate-200 bg-white">
+            <div class="px-4 py-3 border-t border-slate-200 bg-white">
                 <div id="notifFormMsg" class="hidden mb-2 rounded-lg px-3 py-1.5 text-xs font-semibold"></div>
                 <button id="notifSubmit" type="button" onclick="submitNotifSubscribe()"
                         class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors">
