@@ -55,14 +55,13 @@ class NotificationController extends Controller
             'phone_number'    => ['required_if:channel,whatsapp,both', 'nullable', 'string', 'max:20'],
             'fcm_token'       => ['required_if:channel,fcm,both', 'nullable', 'string', 'max:500'],
             'nama'            => ['nullable', 'string', 'max:100'],
-            'reminder_minutes'=> ['nullable', 'integer', 'min:1', 'max:10080'], // 1 min - 7 days
+            'reminder_minutes'=> ['nullable', 'integer', 'min:1'], // No max — user can set any time
         ], [
             'agenda_ids.required'       => 'Pilih minimal satu agenda.',
             'agenda_ids.min'            => 'Pilih minimal satu agenda.',
             'phone_number.required_if'  => 'Nomor WhatsApp diperlukan untuk channel ini.',
             'fcm_token.required_if'     => 'Izinkan notifikasi browser terlebih dahulu.',
             'reminder_minutes.min'      => 'Waktu pengingat minimal 1 menit.',
-            'reminder_minutes.max'      => 'Waktu pengingat maksimal 7 hari.',
         ]);
 
         if ($validator->fails()) {

@@ -549,15 +549,27 @@
                 {{-- Custom input (hidden by default) --}}
                 <div id="customReminderSection" class="mt-2 hidden">
                     <div class="flex gap-2 items-center">
-                        <input id="customReminderValue" type="number" min="1" max="10080" value="1" 
+                        <input id="customReminderValue" type="number" min="1" value="30" 
                                class="w-20 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
                         <select id="customReminderUnit" onchange="updateCustomReminder()"
                                 class="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 bg-white">
                             <option value="1">menit</option>
-                            <option value="60" selected>jam</option>
+                            <option value="60">jam</option>
                             <option value="1440">hari</option>
                         </select>
                         <span class="text-xs text-slate-500">sebelum</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        <span class="text-[11px] text-slate-400 mr-0.5 self-center">Rekomendasi:</span>
+                        <button type="button" onclick="setCustomReminder(5,1)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">5 mnt</button>
+                        <button type="button" onclick="setCustomReminder(15,1)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">15 mnt</button>
+                        <button type="button" onclick="setCustomReminder(30,1)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">30 mnt</button>
+                        <button type="button" onclick="setCustomReminder(1,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">1 jam</button>
+                        <button type="button" onclick="setCustomReminder(2,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">2 jam</button>
+                        <button type="button" onclick="setCustomReminder(3,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">3 jam</button>
+                        <button type="button" onclick="setCustomReminder(6,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">6 jam</button>
+                        <button type="button" onclick="setCustomReminder(1,1440)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">1 hari</button>
+                        <button type="button" onclick="setCustomReminder(2,1440)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">2 hari</button>
                     </div>
                     <p id="immediateHint" class="hidden mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
                         <i data-lucide="zap" class="h-3 w-3"></i>
@@ -653,14 +665,19 @@ function handleReminderChange(value) {
     }
 }
 
+// Quick-set custom reminder from recommendation chips
+function setCustomReminder(value, unit) {
+    document.getElementById('customReminderValue').value = value;
+    document.getElementById('customReminderUnit').value = unit;
+    updateCustomReminder();
+}
+
 function updateCustomReminder() {
     const value = parseInt(document.getElementById('customReminderValue').value) || 1;
     const unit = parseInt(document.getElementById('customReminderUnit').value) || 1;
     selectedReminderMinutes = value * unit;
     
-    // Validate: min 1 minute, max 7 days (10080 minutes)
     if (selectedReminderMinutes < 1) selectedReminderMinutes = 1;
-    if (selectedReminderMinutes > 10080) selectedReminderMinutes = 10080;
     
     // Show immediate hint if <= 15 minutes
     const immediateHint = document.getElementById('immediateHint');
