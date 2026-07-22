@@ -26,9 +26,7 @@ class SendAgendaReminders extends Command
         $this->newLine();
 
         // Cari subscribers yang perlu dikirim notifikasi
-        // Skip yang is_immediate (sudah dikirim langsung saat subscribe)
         $subscribers = NotifikasiPendaftar::with('agenda')
-            ->where('is_immediate', false) // Skip immediate — sudah dikirim langsung
             ->whereHas('agenda', function ($q) use ($now) {
                 $q->where('status', '!=', 'dibatalkan')
                   ->where('waktu_mulai', '>', $now); // Hanya agenda yang belum mulai

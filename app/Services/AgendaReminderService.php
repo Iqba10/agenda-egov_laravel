@@ -152,6 +152,7 @@ class AgendaReminderService
                 'fcm_token_id'       => $fcmTokenId,
                 'channel_preference' => $data['channel'] ?? 'whatsapp',
                 'reminder_minutes'   => $data['reminder_minutes'] ?? 60,
+                'is_immediate'       => false, // Always false - no immediate mode
             ]
         );
     }
@@ -201,7 +202,7 @@ class AgendaReminderService
 
     /**
      * Subscribe ke multiple agenda sekaligus
-     * Jika reminder_minutes <= 15, kirim IMMEDIATE (langsung saat subscribe)
+     * Semua reminder akan dikirim oleh scheduler sesuai waktu yang dipilih
      */
     public function subscribeToMultipleAgendas(array $data): array
     {
@@ -211,7 +212,6 @@ class AgendaReminderService
         $phoneNumber = $data['phone_number'] ?? null;
         $fcmToken = $data['fcm_token'] ?? null;
         $reminderMinutes = $data['reminder_minutes'] ?? 60;
-        $isImmediate = $reminderMinutes <= 15;
 
         \Log::info('subscribeToMultipleAgendas() - START', [
             'channel' => $channel,
@@ -220,7 +220,6 @@ class AgendaReminderService
             'phone_number' => $phoneNumber ? substr($phoneNumber, 0, 6) . '***' : null,
             'fcm_token' => $fcmToken ? substr($fcmToken, 0, 20) . '...' : null,
             'reminder_minutes' => $reminderMinutes,
-            'is_immediate' => $isImmediate,
             'will_save_whatsapp' => in_array($channel, ['whatsapp', 'both']) && !empty($phoneNumber),
             'will_save_fcm' => in_array($channel, ['fcm', 'both']) && !empty($fcmToken),
         ]);
@@ -235,9 +234,8 @@ class AgendaReminderService
                         'agenda_id' => $agendaId,
                         'phone' => substr($phoneNumber, 0, 6) . '***',
                         'reminder_minutes' => $reminderMinutes,
-                        'is_immediate' => $isImmediate,
                     ]);
-                    
+
                     $subscriber = $this->subscribe([
                         'agenda_id'       => $agendaId,
                         'phone_number'    => $phoneNumber,
@@ -245,25 +243,14 @@ class AgendaReminderService
                         'channel'         => $channel,
                         'fcm_token'       => $fcmToken,
                         'reminder_minutes'=> $reminderMinutes,
-                        'is_immediate'    => $isImmediate,
                     ]);
-                    
+
                     \Log::info('Subscriber saved', [
                         'subscriber_id' => $subscriber->id,
                         'agenda_id' => $subscriber->agenda_id,
-                        'is_immediate' => $subscriber->is_immediate,
                     ]);
-                    
-                    $results[] = $subscriber;
 
-                    // Jika immediate, kirim langsung sekarang
-                    if ($isImmediate) {
-                        \Log::info('IMMEDIATE MODE - sending now', [
-                            'subscriber_id' => $subscriber->id,
-                            'agenda_id' => $agendaId,
-                        ]);
-                        $this->sendImmediate($subscriber);
-                    }
+                    $results[] = $subscriber;
                 }
 
                 // Untuk FCM/both, subscribe token ke agenda
