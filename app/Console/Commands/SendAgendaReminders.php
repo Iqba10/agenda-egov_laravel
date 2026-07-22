@@ -27,14 +27,11 @@ class SendAgendaReminders extends Command
 
         // Cari subscribers yang perlu dikirim notifikasi
         // Skip yang is_immediate (sudah dikirim langsung saat subscribe)
-        // Include agenda yang baru mulai (grace period 30 menit)
-        $graceMinutes = 30;
         $subscribers = NotifikasiPendaftar::with('agenda')
             ->where('is_immediate', false) // Skip immediate — sudah dikirim langsung
-            ->whereHas('agenda', function ($q) use ($now, $graceMinutes) {
+            ->whereHas('agenda', function ($q) use ($now) {
                 $q->where('status', '!=', 'dibatalkan')
-                  // Include agenda yang sudah mulai tapi masih dalam grace period
-                  ->where('waktu_mulai', '>', $now->copy()->subMinutes($graceMinutes));
+                  ->where('waktu_mulai', '>', $now); // Hanya agenda yang belum mulai
             })
             ->where(function ($q) {
                 $q->where('whatsapp_sent', false)
@@ -66,14 +63,6 @@ class SendAgendaReminders extends Command
             if ($now->between($windowStart, $windowEnd)) {
                 // Tepat waktu - dalam window
                 $readyToSend[] = $subscriber;
-            } elseif ($now->gt($windowEnd) && !$agendaStarted) {
-                // Lewat window reminder TAPI agenda belum mulai - tetap kirim!
-                $this->warn("  [CATCH-UP] {$agenda->perihal_kegiatan} - reminder terlewat, agenda belum mulai");
-                $readyToSend[] = $subscriber;
-            } elseif ($agendaStarted && $minutesSinceAgendaStart <= $graceMinutes) {
-                // Agenda sudah mulai tapi masih dalam grace period - kirim juga
-                $this->warn("  [GRACE] {$agenda->perihal_kegiatan} - sudah mulai {$minutesSinceAgendaStart} menit lalu");
-                $readyToSend[] = $subscriber;
             } elseif ($now->lt($windowStart)) {
                 // Belum waktunya
                 $upcoming[] = [
@@ -83,7 +72,7 @@ class SendAgendaReminders extends Command
                     'minutes_until_reminder' => $minutesUntilReminder,
                 ];
             }
-            // Jika agenda sudah lewat > grace period, skip (terlalu terlambat)
+            // Jika lewat window atau agenda sudah mulai, skip (terlalu terlambat)
         }
 
         $this->info("Siap kirim: " . count($readyToSend) . " subscriber");
