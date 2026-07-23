@@ -51,9 +51,9 @@ class SendAgendaReminders extends Command
             $reminderTime = $agenda->waktu_mulai->copy()->subMinutes($reminderMinutes);
             $agendaStarted = $now->gte($agenda->waktu_mulai);
             
-            // Toleransi window untuk reminder
-            $windowStart = $reminderTime->copy()->subMinutes(10);
-            $windowEnd = $reminderTime->copy()->addMinutes(10);
+            // Toleransi window untuk reminder (±1 menit untuk akurasi)
+            $windowStart = $reminderTime->copy()->subMinutes(1);
+            $windowEnd = $reminderTime->copy()->addMinutes(1);
             
             $minutesUntilReminder = $now->diffInMinutes($reminderTime, false);
             $minutesSinceAgendaStart = $agendaStarted ? $now->diffInMinutes($agenda->waktu_mulai) : 0;

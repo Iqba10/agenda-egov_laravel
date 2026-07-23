@@ -126,6 +126,12 @@ class NotificationController extends Controller
             $reminderMinutes = $data['reminder_minutes'] ?? 60;
             $reminderLabel = $this->formatReminderTime($reminderMinutes);
 
+            \Log::info('Subscribe success message', [
+                'reminder_minutes_input' => $reminderMinutes,
+                'reminder_label' => $reminderLabel,
+                'final_message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} {$reminderLabel} sebelum agenda dimulai.",
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} {$reminderLabel} sebelum agenda dimulai.",

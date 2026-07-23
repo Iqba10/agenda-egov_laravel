@@ -676,9 +676,11 @@ function updateCustomReminder() {
     const value = parseInt(document.getElementById('customReminderValue').value) || 1;
     const unit = parseInt(document.getElementById('customReminderUnit').value) || 1;
     selectedReminderMinutes = value * unit;
-    
+
+    console.log('updateCustomReminder - value:', value, 'unit:', unit, 'result:', selectedReminderMinutes);
+
     if (selectedReminderMinutes < 1) selectedReminderMinutes = 1;
-    
+
     // Show immediate hint if <= 15 minutes
     const immediateHint = document.getElementById('immediateHint');
     if (immediateHint) {
@@ -985,7 +987,10 @@ async function submitNotifSubscribe() {
             agenda_ids: [...selectedAgendaIds],
             reminder_minutes: selectedReminderMinutes,
         };
-        
+
+        console.log('Sending payload:', payload);
+        console.log('selectedReminderMinutes:', selectedReminderMinutes);
+
         if (phone) payload.phone_number = phone;
         if (hasValidFcmToken(fcmToken)) payload.fcm_token = fcmToken;
 
