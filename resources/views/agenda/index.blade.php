@@ -463,6 +463,11 @@
                         <i data-lucide="layers" class="h-4 w-4"></i>
                         Gabungan
                     </button>
+                    <button type="button" onclick="setChannel('group')" id="channelGroup"
+                            class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all border-slate-200 text-slate-600 hover:border-slate-300">
+                        <i data-lucide="users" class="h-4 w-4"></i>
+                        Grup OPD
+                    </button>
                 </div>
             </div>
 
@@ -527,6 +532,19 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {{-- Group mode: OPD Group selection --}}
+                <div id="groupSection" class="hidden">
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-purple-600 mb-1.5 flex items-center gap-1">
+                        <i data-lucide="users" class="h-3 w-3"></i> Pilih Grup OPD
+                    </label>
+                    <select id="opdGroupSelect"
+                            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-slate-800 bg-white">
+                        <option value="">-- Pilih Grup --</option>
+                        {{-- Groups will be loaded dynamically --}}
+                    </select>
+                    <p class="text-[10px] text-slate-500 mt-1">Notifikasi akan dikirim ke grup WhatsApp OPD yang dipilih.</p>
                 </div>
             </div>
 
@@ -699,13 +717,14 @@ function setChannel(channel) {
     selectedChannel = channel;
     
     // Update button styles
-    const channels = ['whatsapp', 'fcm', 'both'];
+    const channels = ['whatsapp', 'fcm', 'both', 'group'];
     const activeColors = {
         whatsapp: 'border-emerald-500 bg-emerald-50 text-emerald-700',
         fcm: 'border-blue-500 bg-blue-50 text-blue-700',
         both: 'border-purple-500 bg-purple-50 text-purple-700',
+        group: 'border-amber-500 bg-amber-50 text-amber-700',
     };
-    
+
     channels.forEach(ch => {
         const btn = document.getElementById('channel' + ch.charAt(0).toUpperCase() + ch.slice(1));
         if (ch === channel) {
@@ -714,26 +733,36 @@ function setChannel(channel) {
             btn.className = 'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all border-slate-200 text-slate-600 hover:border-slate-300';
         }
     });
-    
-    // Show/hide input sections - 3 mutually exclusive views
+
+    // Show/hide input sections - 4 mutually exclusive views
     const waSection = document.getElementById('waInputSection');
     const fcmSection = document.getElementById('fcmSection');
     const bothSection = document.getElementById('bothSection');
-    
+    const groupSection = document.getElementById('groupSection');
+
     if (channel === 'whatsapp') {
         waSection.classList.remove('hidden');
         fcmSection.classList.add('hidden');
         bothSection.classList.add('hidden');
+        groupSection.classList.add('hidden');
     } else if (channel === 'fcm') {
         waSection.classList.add('hidden');
         fcmSection.classList.remove('hidden');
         bothSection.classList.add('hidden');
+        groupSection.classList.add('hidden');
         checkFcmPermission();
-    } else { // both - compact grid layout
+    } else if (channel === 'both') {
         waSection.classList.add('hidden');
         fcmSection.classList.add('hidden');
         bothSection.classList.remove('hidden');
+        groupSection.classList.add('hidden');
         checkFcmPermission();
+    } else if (channel === 'group') {
+        waSection.classList.add('hidden');
+        fcmSection.classList.add('hidden');
+        bothSection.classList.add('hidden');
+        groupSection.classList.remove('hidden');
+        loadOpdGroups();
     }
     
     lucide.createIcons();
@@ -850,6 +879,36 @@ async function requestFcmPermission() {
     }
 }
 
+function loadOpdGroups() {
+    const select = document.getElementById('opdGroupSelect');
+    select.innerHTML = '<option value="">-- Pilih Grup --</option><option value="" disabled>Memuat...</option>';
+
+    fetch('/api/opd-groups')
+        .then(r => r.json())
+        .then(data => {
+            select.innerHTML = '<option value="">-- Pilih Grup --</option>';
+            if (data.groups && data.groups.length > 0) {
+                data.groups.forEach(group => {
+                    if (group.is_active) {
+                        const option = document.createElement('option');
+                        option.value = group.id;
+                        option.textContent = group.name;
+                        select.appendChild(option);
+                    }
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Tidak ada grup aktif';
+                option.disabled = true;
+                select.appendChild(option);
+            }
+        })
+        .catch(() => {
+            select.innerHTML = '<option value="">-- Pilih Grup --</option><option value="" disabled>Gagal memuat grup</option>';
+        });
+}
+
 let notifDebounce;
 document.getElementById('notifSearch').addEventListener('input', function() {
     clearTimeout(notifDebounce);
@@ -939,12 +998,13 @@ async function submitNotifSubscribe() {
     
     const needsPhone = selectedChannel === 'whatsapp' || selectedChannel === 'both';
     const needsFcm = selectedChannel === 'fcm' || selectedChannel === 'both';
-    
+    const needsGroup = selectedChannel === 'group';
+
     let phone = null;
     if (needsPhone) {
         // Get phone from the correct input based on channel
-        const rawPhone = selectedChannel === 'both' 
-            ? phoneInputBoth.value.trim() 
+        const rawPhone = selectedChannel === 'both'
+            ? phoneInputBoth.value.trim()
             : phoneInput.value.trim();
         phone = normalizePhone(rawPhone);
         if (phone.length < 10) {
@@ -952,10 +1012,19 @@ async function submitNotifSubscribe() {
             return;
         }
     }
-    
+
     if (needsFcm && !hasValidFcmToken(fcmToken) && Notification.permission !== 'granted') {
         showFormMsg('Izinkan notifikasi browser terlebih dahulu.', false);
         return;
+    }
+
+    let opdGroupId = null;
+    if (needsGroup) {
+        opdGroupId = document.getElementById('opdGroupSelect').value;
+        if (!opdGroupId) {
+            showFormMsg('Pilih grup OPD terlebih dahulu.', false);
+            return;
+        }
     }
 
     btn.disabled = true;
@@ -993,6 +1062,7 @@ async function submitNotifSubscribe() {
 
         if (phone) payload.phone_number = phone;
         if (hasValidFcmToken(fcmToken)) payload.fcm_token = fcmToken;
+        if (opdGroupId) payload.opd_group_id = opdGroupId;
 
         const res = await fetch('{{ route('notify.subscribe') }}', {
             method: 'POST',

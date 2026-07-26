@@ -6,6 +6,7 @@
 @php($adminLinks = [
     ['label' => 'Pengguna', 'icon' => 'users', 'route' => 'admin.users.index', 'active' => request()->routeIs('admin.users.*')],
     ['label' => 'Subscribers', 'icon' => 'bell', 'route' => 'admin.subscribers.index', 'active' => request()->routeIs('admin.subscribers.*')],
+    ['label' => 'Grup OPD', 'icon' => 'users', 'route' => 'admin.opd-groups.index', 'active' => request()->routeIs('admin.opd-groups.*')],
     ['label' => 'Test Notifikasi', 'icon' => 'bell-ring', 'route' => 'admin.notifications.test', 'active' => request()->routeIs('admin.notifications.*')],
 ])
 @php($profileLink = ['label' => 'Profil', 'icon' => 'user-round', 'route' => 'profile.edit', 'active' => request()->routeIs('profile.*')])

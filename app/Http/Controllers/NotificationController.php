@@ -49,11 +49,12 @@ class NotificationController extends Controller
     public function subscribe(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'channel'         => ['required', 'in:whatsapp,fcm,both'],
+            'channel'         => ['required', 'in:whatsapp,fcm,both,group'],
             'agenda_ids'      => ['required', 'array', 'min:1', 'max:10'],
             'agenda_ids.*'    => ['integer', 'exists:agenda,id'],
             'phone_number'    => ['required_if:channel,whatsapp,both', 'nullable', 'string', 'max:20'],
             'fcm_token'       => ['required_if:channel,fcm,both', 'nullable', 'string', 'max:500'],
+            'opd_group_id'    => ['required_if:channel,group', 'nullable', 'integer', 'exists:opd_groups,id'],
             'nama'            => ['nullable', 'string', 'max:100'],
             'reminder_minutes'=> ['nullable', 'integer', 'min:1'], // No max — user can set any time
         ], [
@@ -61,6 +62,8 @@ class NotificationController extends Controller
             'agenda_ids.min'            => 'Pilih minimal satu agenda.',
             'phone_number.required_if'  => 'Nomor WhatsApp diperlukan untuk channel ini.',
             'fcm_token.required_if'     => 'Izinkan notifikasi browser terlebih dahulu.',
+            'opd_group_id.required_if'  => 'Pilih grup OPD terlebih dahulu.',
+            'opd_group_id.exists'       => 'Grup OPD tidak valid.',
             'reminder_minutes.min'      => 'Waktu pengingat minimal 1 menit.',
         ]);
 
@@ -85,6 +88,13 @@ class NotificationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Layanan notifikasi browser belum dikonfigurasi.',
+            ], 503);
+        }
+
+        if ($channel === 'group' && !$serviceStatus['whatsapp']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Layanan WhatsApp belum dikonfigurasi untuk grup OPD.',
             ], 503);
         }
 
@@ -120,6 +130,7 @@ class NotificationController extends Controller
                 'whatsapp' => 'WhatsApp',
                 'fcm'      => 'notifikasi browser',
                 'both'     => 'WhatsApp dan notifikasi browser',
+                'group'    => 'grup OPD',
             };
 
             // Format waktu pengingat untuk pesan

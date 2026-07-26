@@ -87,17 +87,46 @@ class SendAgendaReminders extends Command
             $this->line("  Subscriber: {$subscriber->phone_number} ({$subscriber->channel_preference})");
             $this->line("  Reminder: {$reminderMinutes} menit sebelum");
 
-            if ($service->sendToSubscriber($subscriber, $type)) {
-                $sent++;
-                $this->info("  [OK] Terkirim!");
-                Log::info("Reminder sent", [
-                    'subscriber_id' => $subscriber->id,
-                    'agenda_id' => $agenda->id,
-                    'agenda' => $agenda->perihal_kegiatan,
-                    'reminder_minutes' => $reminderMinutes,
-                ]);
+            // Cek jika ini subscriber grup OPD
+            if ($subscriber->channel_preference === 'group' && str_starts_with($subscriber->phone_number, 'group:')) {
+                $opdGroupId = substr($subscriber->phone_number, 6); // Remove 'group:' prefix
+                $opdGroup = \App\Models\OpdGroup::find($opdGroupId);
+
+                if ($opdGroup && $opdGroup->is_active) {
+                    $this->line("  Grup OPD: {$opdGroup->name}");
+
+                    if ($service->fonnte->sendAgendaReminderToGroup($opdGroup->group_id, $agenda, $type)) {
+                        $sent++;
+                        $subscriber->markWhatsappSent();
+                        $this->info("  [OK] Terkirim ke grup!");
+                        Log::info("Group reminder sent", [
+                            'subscriber_id' => $subscriber->id,
+                            'agenda_id' => $agenda->id,
+                            'agenda' => $agenda->perihal_kegiatan,
+                            'opd_group_id' => $opdGroupId,
+                            'opd_group_name' => $opdGroup->name,
+                            'reminder_minutes' => $reminderMinutes,
+                        ]);
+                    } else {
+                        $this->warn("  [FAIL] Gagal mengirim ke grup");
+                    }
+                } else {
+                    $this->warn("  [SKIP] Grup OPD tidak aktif atau tidak ditemukan");
+                }
             } else {
-                $this->warn("  [FAIL] Gagal mengirim");
+                // Kirim ke subscriber biasa
+                if ($service->sendToSubscriber($subscriber, $type)) {
+                    $sent++;
+                    $this->info("  [OK] Terkirim!");
+                    Log::info("Reminder sent", [
+                        'subscriber_id' => $subscriber->id,
+                        'agenda_id' => $agenda->id,
+                        'agenda' => $agenda->perihal_kegiatan,
+                        'reminder_minutes' => $reminderMinutes,
+                    ]);
+                } else {
+                    $this->warn("  [FAIL] Gagal mengirim");
+                }
             }
             $this->newLine();
         }

@@ -88,6 +88,69 @@ class FonnteSender
         }
     }
 
+    /**
+     * Send to WhatsApp group
+     */
+    public function sendToGroup(string $groupId, string $message): array
+    {
+        if (!$this->isConfigured()) {
+            Log::warning('Fonnte not configured - FONNTE_TOKEN is empty');
+            return ['success' => false, 'error' => 'Fonnte token tidak dikonfigurasi'];
+        }
+
+        try {
+            $payload = [
+                'target'  => $groupId, // Group ID format: xxx@g.us
+                'message' => $message,
+            ];
+
+            if ($this->device) {
+                $payload['device'] = $this->device;
+            }
+
+            $response = Http::withHeaders([
+                'Authorization' => $this->token,
+            ])->post($this->apiUrl, $payload);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                Log::info('Fonnte API response (group)', ['group_id' => $groupId, 'response' => $data]);
+
+                $status = $data['status'] ?? false;
+                if ($status === true || $status === 'true' || $status == 1) {
+                    Log::info('WhatsApp sent to group successfully', ['group_id' => $groupId]);
+                    return ['success' => true, 'data' => $data];
+                }
+
+                if (isset($data['detail']) || isset($data['process'])) {
+                    Log::info('WhatsApp sent to group (via detail/process)', ['group_id' => $groupId]);
+                    return ['success' => true, 'data' => $data];
+                }
+
+                Log::warning('Fonnte API returned error (group)', [
+                    'group_id' => $groupId,
+                    'response' => $data,
+                ]);
+                return ['success' => false, 'error' => $data['reason'] ?? $data['detail'] ?? 'Unknown error', 'data' => $data];
+            }
+
+            Log::error('Fonnte API request failed (group)', [
+                'group_id' => $groupId,
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+            return ['success' => false, 'error' => 'HTTP ' . $response->status()];
+
+        } catch (\Throwable $e) {
+            Log::error('Fonnte API exception (group)', [
+                'group_id' => $groupId,
+                'message' => $e->getMessage(),
+            ]);
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
     public function sendAgendaReminder(string $phone, Agenda $agenda, string $type = 'immediate'): bool
     {
         Log::info('sendAgendaReminder called', [
@@ -98,15 +161,39 @@ class FonnteSender
             'token_configured' => $this->isConfigured(),
             'token_length' => strlen($this->token ?? ''),
         ]);
-        
+
         $message = $this->buildAgendaMessage($agenda, $type);
         $result = $this->send($phone, $message);
-        
+
         Log::info('sendAgendaReminder result', [
             'success' => $result['success'],
             'error' => $result['error'] ?? null,
         ]);
-        
+
+        return $result['success'];
+    }
+
+    /**
+     * Send agenda reminder to WhatsApp group
+     */
+    public function sendAgendaReminderToGroup(string $groupId, Agenda $agenda, string $type = 'immediate'): bool
+    {
+        Log::info('sendAgendaReminderToGroup called', [
+            'group_id' => $groupId,
+            'agenda_id' => $agenda->id,
+            'agenda_title' => $agenda->perihal_kegiatan,
+            'type' => $type,
+            'token_configured' => $this->isConfigured(),
+        ]);
+
+        $message = $this->buildAgendaMessage($agenda, $type);
+        $result = $this->sendToGroup($groupId, $message);
+
+        Log::info('sendAgendaReminderToGroup result', [
+            'success' => $result['success'],
+            'error' => $result['error'] ?? null,
+        ]);
+
         return $result['success'];
     }
 

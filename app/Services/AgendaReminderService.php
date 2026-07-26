@@ -211,6 +211,7 @@ class AgendaReminderService
         $channel = $data['channel'] ?? 'whatsapp';
         $phoneNumber = $data['phone_number'] ?? null;
         $fcmToken = $data['fcm_token'] ?? null;
+        $opdGroupId = $data['opd_group_id'] ?? null;
         $reminderMinutes = $data['reminder_minutes'] ?? 60;
 
         \Log::info('subscribeToMultipleAgendas() - START', [
@@ -219,14 +220,16 @@ class AgendaReminderService
             'agenda_ids_count' => count($agendaIds),
             'phone_number' => $phoneNumber ? substr($phoneNumber, 0, 6) . '***' : null,
             'fcm_token' => $fcmToken ? substr($fcmToken, 0, 20) . '...' : null,
+            'opd_group_id' => $opdGroupId,
             'reminder_minutes' => $reminderMinutes,
             'will_save_whatsapp' => in_array($channel, ['whatsapp', 'both']) && !empty($phoneNumber),
             'will_save_fcm' => in_array($channel, ['fcm', 'both']) && !empty($fcmToken),
+            'will_save_group' => $channel === 'group' && !empty($opdGroupId),
         ]);
 
         foreach ($agendaIds as $agendaId) {
             \Log::info('Processing agenda', ['agenda_id' => $agendaId]);
-            
+
             try {
                 // Untuk WhatsApp/both, simpan ke notifikasi_pendaftar
                 if (in_array($channel, ['whatsapp', 'both']) && !empty($phoneNumber)) {
@@ -246,6 +249,36 @@ class AgendaReminderService
                     ]);
 
                     \Log::info('Subscriber saved', [
+                        'subscriber_id' => $subscriber->id,
+                        'agenda_id' => $subscriber->agenda_id,
+                    ]);
+
+                    $results[] = $subscriber;
+                }
+
+                // Untuk group channel, simpan ke notifikasi_pendaftar dengan opd_group_id
+                if ($channel === 'group' && !empty($opdGroupId)) {
+                    \Log::info('Saving to notifikasi_pendaftar (group)', [
+                        'agenda_id' => $agendaId,
+                        'opd_group_id' => $opdGroupId,
+                        'reminder_minutes' => $reminderMinutes,
+                    ]);
+
+                    $subscriber = NotifikasiPendaftar::updateOrCreate(
+                        [
+                            'agenda_id'    => $agendaId,
+                            'phone_number' => 'group:' . $opdGroupId, // Prefix to identify group subscribers
+                        ],
+                        [
+                            'nama'               => 'Grup OPD',
+                            'fcm_token_id'       => null,
+                            'channel_preference' => 'group',
+                            'reminder_minutes'   => $reminderMinutes,
+                            'is_immediate'       => false,
+                        ]
+                    );
+
+                    \Log::info('Group subscriber saved', [
                         'subscriber_id' => $subscriber->id,
                         'agenda_id' => $subscriber->agenda_id,
                     ]);

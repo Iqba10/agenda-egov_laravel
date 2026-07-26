@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AgendaController as AdminAgendaController;
 use App\Http\Controllers\Admin\NotificationTestController;
+use App\Http\Controllers\Admin\OpdGroupController;
 use App\Http\Controllers\Admin\SubscriberController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DocumentController;
@@ -20,6 +21,7 @@ Route::get('/api/agenda-search', [NotificationController::class, 'search'])->nam
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
 Route::post('/api/fcm/register', [NotificationController::class, 'registerFcmToken'])->name('fcm.register')->middleware('throttle:30,1');
 Route::post('/notify/subscribe', [NotificationController::class, 'subscribe'])->name('notify.subscribe')->middleware('throttle:10,5');
+Route::get('/api/opd-groups', [App\Http\Controllers\Api\OpdGroupController::class, 'index'])->name('api.opd-groups.index');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -86,6 +88,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/subscribers/{subscriber}', [SubscriberController::class, 'destroy'])->name('subscribers.destroy');
     Route::post('/subscribers/bulk-resend', [SubscriberController::class, 'bulkResend'])->name('subscribers.bulk-resend');
     Route::delete('/fcm-tokens/{fcmToken}', [SubscriberController::class, 'destroyFcmToken'])->name('fcm-tokens.destroy');
+
+    // OPD Groups Management
+    Route::get('/opd-groups', [OpdGroupController::class, 'index'])->name('opd-groups.index');
+    Route::get('/opd-groups/create', [OpdGroupController::class, 'create'])->name('opd-groups.create');
+    Route::post('/opd-groups', [OpdGroupController::class, 'store'])->name('opd-groups.store');
+    Route::get('/opd-groups/{opdGroup}/edit', [OpdGroupController::class, 'edit'])->name('opd-groups.edit');
+    Route::put('/opd-groups/{opdGroup}', [OpdGroupController::class, 'update'])->name('opd-groups.update');
+    Route::delete('/opd-groups/{opdGroup}', [OpdGroupController::class, 'destroy'])->name('opd-groups.destroy');
+    Route::post('/opd-groups/fetch', [OpdGroupController::class, 'fetchGroups'])->name('opd-groups.fetch');
 });
 
 require __DIR__.'/auth.php';
