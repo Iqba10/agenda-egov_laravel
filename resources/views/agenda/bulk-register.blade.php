@@ -70,7 +70,7 @@
                         </div>
                     </div>
                 @else
-                    <div class="space-y-2" id="agendaList">
+                    <div class="space-y-2 max-h-56 overflow-y-auto pr-1" id="agendaList">
                         @foreach($agendas as $agenda)
                             <label class="flex items-start gap-3 rounded-xl border border-slate-200 cursor-pointer p-3 transition-all hover:border-blue-300 hover:bg-blue-50/50 agenda-item"
                                    data-agenda-id="{{ $agenda->id }}">
@@ -102,6 +102,7 @@
                         @endforeach
                     </div>
                     <p class="mt-2 text-xs text-slate-400">Pilih maksimal 10 agenda. <span id="agendaCount" class="font-semibold text-blue-600">0 dipilih</span></p>
+                    <p class="mt-1 text-[10px] text-slate-400"><i data-lucide="mouse" class="h-3 w-3 inline"></i> Scroll untuk melihat semua agenda</p>
                 @endif
             </div>
 
@@ -132,9 +133,9 @@
                 {{-- Manual Input --}}
                 <div id="manualSection">
                     <label class="text-xs font-semibold text-slate-600 mb-1.5 block">Daftar Nomor WhatsApp</label>
-                    <textarea id="manualNumbers" rows="8"
+                    <textarea id="manualNumbers" rows="6"
                               placeholder="Masukkan nomor WhatsApp, satu per baris atau dipisah koma:&#10;&#10;081234567890&#10;085678901234&#10;+6281211112222&#10;&#10;Atau dengan nama: nama, nomor (dipisah tab/pipe)&#10;Budi Santoso&#9;081234567890&#10;Ani Wijaya|085678901234"
-                              class="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 text-slate-800 font-mono resize-y"></textarea>
+                              class="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 text-slate-800 font-mono resize-y max-h-48"></textarea>
                     <div class="flex items-center justify-between mt-2">
                         <p class="text-[11px] text-slate-400">Format: nomor per baris, atau nama + nomor dipisah tab/pipe/semicolon</p>
                         <p id="manualCount" class="text-[11px] font-semibold text-slate-500">0 nomor terdeteksi</p>
