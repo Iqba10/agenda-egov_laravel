@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OpdGroupController;
 use App\Http\Controllers\Admin\SubscriberController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\BulkRegistrationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicAgendaController;
@@ -21,6 +22,11 @@ Route::get('/api/agenda-search', [NotificationController::class, 'search'])->nam
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
 Route::post('/api/fcm/register', [NotificationController::class, 'registerFcmToken'])->name('fcm.register')->middleware('throttle:30,1');
 Route::post('/notify/subscribe', [NotificationController::class, 'subscribe'])->name('notify.subscribe')->middleware('throttle:10,5');
+
+// Bulk Registration (WhatsApp)
+Route::get('/notify/bulk', [BulkRegistrationController::class, 'index'])->name('notify.bulk');
+Route::post('/notify/bulk', [BulkRegistrationController::class, 'store'])->name('notify.bulk.store')->middleware('throttle:5,1');
+
 Route::get('/api/opd-groups', [App\Http\Controllers\Api\OpdGroupController::class, 'index'])->name('api.opd-groups.index');
 
 Route::middleware('auth')->group(function () {

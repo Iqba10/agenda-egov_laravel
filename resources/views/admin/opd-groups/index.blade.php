@@ -24,6 +24,18 @@
         </div>
     </div>
 
+    {{-- Table Missing Warning --}}
+    @if(!empty($tableMissing))
+    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+        <i data-lucide="alert-triangle" class="h-5 w-5 text-red-500 shrink-0 mt-0.5"></i>
+        <div>
+            <p class="text-sm font-bold text-red-800">Tabel <code>opd_groups</code> belum tersedia</p>
+            <p class="text-xs text-red-600 mt-1">Jalankan migrasi database terlebih dahulu. Di Railway, redeploy aplikasi agar entrypoint menjalankan <code>php artisan migrate</code>, atau jalankan manual:</p>
+            <code class="block mt-2 text-xs bg-red-100 text-red-800 px-3 py-2 rounded-lg font-mono">php artisan migrate --force</code>
+        </div>
+    </div>
+    @endif
+
     {{-- Groups Table --}}
     <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">

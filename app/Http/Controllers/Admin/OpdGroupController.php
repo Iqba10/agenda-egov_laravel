@@ -12,8 +12,18 @@ class OpdGroupController extends Controller
 {
     public function index()
     {
-        $groups = OpdGroup::latest()->get();
-        return view('admin.opd-groups.index', compact('groups'));
+        try {
+            $groups = OpdGroup::latest()->get();
+        } catch (\Throwable $e) {
+            // Table likely doesn't exist yet — run migrations
+            Log::error('OpdGroup index error', ['message' => $e->getMessage()]);
+            $groups = collect();
+            $tableMissing = true;
+            return view('admin.opd-groups.index', compact('groups', 'tableMissing'));
+        }
+
+        $tableMissing = false;
+        return view('admin.opd-groups.index', compact('groups', 'tableMissing'));
     }
 
     public function create()
