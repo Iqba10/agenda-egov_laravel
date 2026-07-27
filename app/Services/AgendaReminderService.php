@@ -6,6 +6,8 @@ use App\Models\Agenda;
 use App\Models\AgendaReminder;
 use App\Models\FcmToken;
 use App\Models\NotifikasiPendaftar;
+use App\Models\OpdGroup;
+use App\Models\OpdGroupMember;
 use Illuminate\Support\Collection;
 
 class AgendaReminderService
@@ -45,6 +47,44 @@ class AgendaReminderService
                 }
             } else {
                 \Log::warning('No phone number for WhatsApp');
+            }
+        }
+
+        // Kirim ke semua anggota grup OPD
+        if ($subscriber->channel_preference === 'group') {
+            $groupId = str_replace('group:', '', $subscriber->phone_number);
+            $group = OpdGroup::find($groupId);
+
+            if ($group && $group->is_active) {
+                $members = $group->members()->get();
+                \Log::info('Sending to OPD group members', [
+                    'group_id' => $group->id,
+                    'group_name' => $group->name,
+                    'members_count' => $members->count(),
+                ]);
+
+                // Kirim ke WhatsApp group (jika group_id tersedia)
+                if ($group->group_id) {
+                    $groupResult = $this->fonnte->sendAgendaReminderToGroup($group->group_id, $agenda, $type);
+                    \Log::info('WhatsApp group send result', ['success' => $groupResult]);
+                    if ($groupResult) {
+                        $success = true;
+                    }
+                }
+
+                // Kirim juga ke masing-masing anggota secara individual
+                foreach ($members as $member) {
+                    $waResult = $this->fonnte->sendAgendaReminder($member->phone_number, $agenda, $type);
+                    if ($waResult) {
+                        $success = true;
+                    }
+                }
+
+                if ($success) {
+                    $subscriber->markWhatsappSent();
+                }
+            } else {
+                \Log::warning('OPD group not found or inactive', ['group_id' => $groupId]);
             }
         }
 

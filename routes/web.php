@@ -29,6 +29,33 @@ Route::post('/notify/bulk', [BulkRegistrationController::class, 'store'])->name(
 
 Route::get('/api/opd-groups', [App\Http\Controllers\Api\OpdGroupController::class, 'index'])->name('api.opd-groups.index');
 
+// Temporary diagnostic route (remove after debugging)
+Route::get('/api/debug-db', function () {
+    $results = [];
+    try {
+        $results['db_connection'] = 'OK';
+        \DB::connection()->getPdo();
+    } catch (\Throwable $e) {
+        $results['db_connection'] = 'FAIL: ' . $e->getMessage();
+    }
+    try {
+        $results['opd_groups_table'] = \Schema::hasTable('opd_groups') ? 'EXISTS' : 'MISSING';
+    } catch (\Throwable $e) {
+        $results['opd_groups_table'] = 'ERROR: ' . $e->getMessage();
+    }
+    try {
+        $results['opd_groups_count'] = \DB::table('opd_groups')->count();
+    } catch (\Throwable $e) {
+        $results['opd_groups_count'] = 'ERROR: ' . $e->getMessage();
+    }
+    try {
+        $results['migrations'] = \DB::table('migrations')->where('migration', 'like', '%opd%')->pluck('migration')->toArray();
+    } catch (\Throwable $e) {
+        $results['migrations'] = 'ERROR: ' . $e->getMessage();
+    }
+    return response()->json($results);
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -103,6 +130,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/opd-groups/{opdGroup}', [OpdGroupController::class, 'update'])->name('opd-groups.update');
     Route::delete('/opd-groups/{opdGroup}', [OpdGroupController::class, 'destroy'])->name('opd-groups.destroy');
     Route::post('/opd-groups/fetch', [OpdGroupController::class, 'fetchGroups'])->name('opd-groups.fetch');
+
+    // OPD Group Members
+    Route::get('/opd-groups/{opdGroup}/members', [OpdGroupController::class, 'members'])->name('opd-groups.members');
+    Route::post('/opd-groups/{opdGroup}/members', [OpdGroupController::class, 'addMembers'])->name('opd-groups.members.add');
+    Route::delete('/opd-groups/{opdGroup}/members/{member}', [OpdGroupController::class, 'removeMember'])->name('opd-groups.members.remove');
 });
 
 require __DIR__.'/auth.php';

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\OpdGroup;
+use App\Models\OpdGroupMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -139,5 +140,88 @@ class OpdGroupController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    // ── Anggota Grup OPD ──
+
+    /**
+     * Tambah anggota ke grup OPD (bulk)
+     */
+    public function addMembers(Request $request, OpdGroup $opdGroup)
+    {
+        $validated = $request->validate([
+            'members'   => ['required', 'array', 'min:1', 'max:200'],
+            'members.*.nama'         => ['required', 'string', 'max:100'],
+            'members.*.phone_number' => ['required', 'string', 'max:20'],
+        ]);
+
+        $added = 0;
+        $duplicates = 0;
+
+        foreach ($validated['members'] as $member) {
+            $phone = $this->normalizePhone($member['phone_number']);
+
+            $exists = OpdGroupMember::where('opd_group_id', $opdGroup->id)
+                ->where('phone_number', $phone)
+                ->exists();
+
+            if ($exists) {
+                $duplicates++;
+                continue;
+            }
+
+            OpdGroupMember::create([
+                'opd_group_id' => $opdGroup->id,
+                'nama'         => trim($member['nama']),
+                'phone_number' => $phone,
+            ]);
+            $added++;
+        }
+
+        return response()->json([
+            'success'    => true,
+            'message'    => "{$added} anggota ditambahkan, {$duplicates} duplikat di-skip.",
+            'added'      => $added,
+            'duplicates' => $duplicates,
+        ]);
+    }
+
+    /**
+     * Hapus anggota dari grup OPD
+     */
+    public function removeMember(OpdGroup $opdGroup, OpdGroupMember $member)
+    {
+        $member->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Anggota berhasil dihapus.',
+        ]);
+    }
+
+    /**
+     * Daftar anggota grup OPD (JSON)
+     */
+    public function members(OpdGroup $opdGroup)
+    {
+        return response()->json([
+            'success' => true,
+            'members' => $opdGroup->members()->orderBy('nama')->get(),
+        ]);
+    }
+
+    /**
+     * Normalisasi nomor telepon Indonesia
+     */
+    private function normalizePhone(string $phone): string
+    {
+        $cleaned = preg_replace('/[^0-9]/', '', $phone);
+        $cleaned = ltrim($cleaned, '0');
+
+        if (!str_starts_with($cleaned, '62')) {
+            $cleaned = '62' . $cleaned;
+        }
+
+        return $cleaned;
     }
 }
