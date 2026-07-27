@@ -115,10 +115,6 @@
                         <i data-lucide="bell" class="h-4 w-4"></i>
                         Dapatkan Notifikasi
                     </button>
-                    <a href="{{ route('notify.bulk') }}" class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-sm font-semibold rounded-lg transition-colors">
-                        <i data-lucide="users-plus" class="h-4 w-4"></i>
-                        <span class="hidden sm:inline">Registrasi Massal</span>
-                    </a>
 
                     @auth
                         {{-- User Card with Dropdown --}}
