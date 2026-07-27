@@ -3,164 +3,119 @@
 namespace App\Console\Commands;
 
 use App\Models\Agenda;
-use App\Models\NotifikasiPendaftar;
-use App\Services\AgendaReminderService;
+use App\Models\FcmToken;
 use App\Services\FcmSender;
+use App\Services\FonnteSender;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class SendAgendaReminders extends Command
 {
     protected $signature   = 'agenda:send-reminders';
-    protected $description = 'Kirim pengingat WhatsApp dan FCM berdasarkan waktu yang dipilih subscriber.';
+    protected $description = 'Kirim pengingat global WhatsApp dan FCM 6 jam & 1 jam sebelum agenda.';
 
-    public function handle(AgendaReminderService $service, FcmSender $fcm): int
+    public function handle(FcmSender $fcm, FonnteSender $fonnte): int
     {
         $now  = now();
         $sent = 0;
 
         $this->info('===========================================');
-        $this->info('  AGENDA REMINDER SCHEDULER');
+        $this->info('  AGENDA GLOBAL REMINDER SCHEDULER');
         $this->info('===========================================');
         $this->info("Waktu server: {$now->format('Y-m-d H:i:s')} WIB");
         $this->newLine();
 
-        // Cari subscribers yang perlu dikirim notifikasi
-        $subscribers = NotifikasiPendaftar::with('agenda')
-            ->whereHas('agenda', function ($q) use ($now) {
-                $q->where('status', '!=', 'dibatalkan')
-                  ->where('waktu_mulai', '>', $now); // Hanya agenda yang belum mulai
+        $agendas = Agenda::query()
+            ->where('status', '!=', 'dibatalkan')
+            ->where('waktu_mulai', '>', $now)
+            ->where(function ($q) use ($now) {
+                $q->whereNull('reminder_6h_sent_at')
+                  ->orWhereNull('reminder_1h_sent_at');
             })
-            ->where(function ($q) {
-                $q->where('whatsapp_sent', false)
-                  ->orWhere('fcm_sent', false);
-            })
+            ->orderBy('waktu_mulai', 'asc')
             ->get();
 
-        $this->info("Total subscribers pending: {$subscribers->count()}");
+        $this->info("Agenda aktif yang memerlukan pengingat: {$agendas->count()}");
         $this->newLine();
 
-        $readyToSend = [];
-        $upcoming = [];
+        foreach ($agendas as $agenda) {
+            $diffMinutes = $now->diffInMinutes($agenda->waktu_mulai, false);
 
-        foreach ($subscribers as $subscriber) {
-            $agenda = $subscriber->agenda;
-            if (!$agenda || !$agenda->waktu_mulai) continue;
-
-            $reminderMinutes = $subscriber->reminder_minutes ?? 60;
-            $reminderTime = $agenda->waktu_mulai->copy()->subMinutes($reminderMinutes);
-            $agendaStarted = $now->gte($agenda->waktu_mulai);
-            
-            // Toleransi window untuk reminder (±1 menit untuk akurasi)
-            $windowStart = $reminderTime->copy()->subMinutes(1);
-            $windowEnd = $reminderTime->copy()->addMinutes(1);
-            
-            $minutesUntilReminder = $now->diffInMinutes($reminderTime, false);
-            $minutesSinceAgendaStart = $agendaStarted ? $now->diffInMinutes($agenda->waktu_mulai) : 0;
-
-            if ($now->between($windowStart, $windowEnd)) {
-                // Tepat waktu - dalam window
-                $readyToSend[] = $subscriber;
-            } elseif ($now->lt($windowStart)) {
-                // Belum waktunya
-                $upcoming[] = [
-                    'subscriber' => $subscriber,
-                    'agenda' => $agenda,
-                    'reminder_minutes' => $reminderMinutes,
-                    'minutes_until_reminder' => $minutesUntilReminder,
-                ];
+            // 1 hour reminder window: between 1h00 and 0h45 before start
+            if ($diffMinutes <= 60 && $diffMinutes >= 45 && is_null($agenda->reminder_1h_sent_at)) {
+                $this->line("> {$agenda->perihal_kegiatan} — pengingat 1 jam");
+                $sent += $this->sendReminder($fcm, $fonnte, $agenda, '1h');
+                $agenda->update(['reminder_1h_sent_at' => $now]);
+                $this->newLine();
+                continue;
             }
-            // Jika lewat window atau agenda sudah mulai, skip (terlalu terlambat)
-        }
 
-        $this->info("Siap kirim: " . count($readyToSend) . " subscriber");
-        $this->newLine();
-
-        // Kirim notifikasi
-        foreach ($readyToSend as $subscriber) {
-            $agenda = $subscriber->agenda;
-            $reminderMinutes = $subscriber->reminder_minutes ?? 60;
-            $type = $this->getReminderType($reminderMinutes);
-
-            $this->line("-> {$agenda->perihal_kegiatan}");
-            $this->line("  Waktu: {$agenda->waktu_mulai->format('d/m/Y H:i')} WIB");
-            $this->line("  Subscriber: {$subscriber->phone_number} ({$subscriber->channel_preference})");
-            $this->line("  Reminder: {$reminderMinutes} menit sebelum");
-
-            // Cek jika ini subscriber grup OPD
-            if ($subscriber->channel_preference === 'group' && str_starts_with($subscriber->phone_number, 'group:')) {
-                $opdGroupId = substr($subscriber->phone_number, 6); // Remove 'group:' prefix
-                $opdGroup = \App\Models\OpdGroup::find($opdGroupId);
-
-                if ($opdGroup && $opdGroup->is_active) {
-                    $this->line("  Grup OPD: {$opdGroup->name}");
-
-                    if ($service->fonnte->sendAgendaReminderToGroup($opdGroup->group_id, $agenda, $type)) {
-                        $sent++;
-                        $subscriber->markWhatsappSent();
-                        $this->info("  [OK] Terkirim ke grup!");
-                        Log::info("Group reminder sent", [
-                            'subscriber_id' => $subscriber->id,
-                            'agenda_id' => $agenda->id,
-                            'agenda' => $agenda->perihal_kegiatan,
-                            'opd_group_id' => $opdGroupId,
-                            'opd_group_name' => $opdGroup->name,
-                            'reminder_minutes' => $reminderMinutes,
-                        ]);
-                    } else {
-                        $this->warn("  [FAIL] Gagal mengirim ke grup");
-                    }
-                } else {
-                    $this->warn("  [SKIP] Grup OPD tidak aktif atau tidak ditemukan");
-                }
-            } else {
-                // Kirim ke subscriber biasa
-                if ($service->sendToSubscriber($subscriber, $type)) {
-                    $sent++;
-                    $this->info("  [OK] Terkirim!");
-                    Log::info("Reminder sent", [
-                        'subscriber_id' => $subscriber->id,
-                        'agenda_id' => $agenda->id,
-                        'agenda' => $agenda->perihal_kegiatan,
-                        'reminder_minutes' => $reminderMinutes,
-                    ]);
-                } else {
-                    $this->warn("  [FAIL] Gagal mengirim");
-                }
-            }
-            $this->newLine();
-        }
-
-        // Tampilkan upcoming reminders
-        if (!empty($upcoming)) {
-            $this->info("Pengingat mendatang:");
-            usort($upcoming, fn($a, $b) => $a['minutes_until_reminder'] <=> $b['minutes_until_reminder']);
-            
-            foreach (array_slice($upcoming, 0, 5) as $item) {
-                $this->line("  - {$item['agenda']->perihal_kegiatan}");
-                $this->line("    Kirim dalam: {$item['minutes_until_reminder']} menit ({$item['reminder_minutes']} menit sebelum agenda)");
+            // 6 hours reminder window: between 6h00 and 5h45 before start
+            if ($diffMinutes <= 360 && $diffMinutes >= 345 && is_null($agenda->reminder_6h_sent_at)) {
+                $this->line("> {$agenda->perihal_kegiatan} — pengingat 6 jam");
+                $sent += $this->sendReminder($fcm, $fonnte, $agenda, '6h');
+                $agenda->update(['reminder_6h_sent_at' => $now]);
+                $this->newLine();
             }
         }
 
-        $this->newLine();
         $this->info("===========================================");
-        $this->info("Total pengingat terkirim: {$sent}");
+        $this->info("Total notifikasi terkirim: {$sent}");
         $this->info("===========================================");
 
         return self::SUCCESS;
     }
 
-    /**
-     * Get reminder type label based on minutes
-     */
-    private function getReminderType(int $minutes): string
+    private function sendReminder(FcmSender $fcm, FonnteSender $fonnte, Agenda $agenda, string $type): int
     {
-        if ($minutes <= 15) return '15m';
-        if ($minutes <= 30) return '30m';
-        if ($minutes <= 60) return '1h';
-        if ($minutes <= 120) return '2h';
-        if ($minutes <= 360) return '6h';
-        if ($minutes <= 1440) return '24h';
-        return 'custom';
+        $sent = 0;
+
+        // FCM: send to all active browser tokens (global subscription)
+        $activeTokens = FcmToken::active()->where('is_active', true)->pluck('token');
+        $this->line("  FCM subscribers: {$activeTokens->count()}");
+
+        foreach ($activeTokens as $token) {
+            try {
+                if ($fcm->sendAgendaReminder($token, $agenda, $type)) {
+                    $sent++;
+                    Log::info('Global FCM reminder sent', [
+                        'agenda_id' => $agenda->id,
+                        'type' => $type,
+                        'token_prefix' => substr($token, 0, 20),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Global FCM reminder failed', [
+                    'agenda_id' => $agenda->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // WhatsApp: send to personal + OPD bulk subscribers
+        $waSubscribers = FcmToken::whatsappSubscribers()
+            ->whereNotNull('whatsapp_phone')
+            ->get();
+        $this->line("  WhatsApp subscribers: {$waSubscribers->count()}");
+
+        foreach ($waSubscribers as $subscriber) {
+            try {
+                if ($fonnte->sendAgendaReminder($subscriber->whatsapp_phone, $agenda, $type)) {
+                    $sent++;
+                    Log::info('Global WhatsApp reminder sent', [
+                        'agenda_id' => $agenda->id,
+                        'type' => $type,
+                        'phone_prefix' => substr($subscriber->whatsapp_phone, 0, 8) . '***',
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Global WhatsApp reminder failed', [
+                    'agenda_id' => $agenda->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $sent;
     }
 }

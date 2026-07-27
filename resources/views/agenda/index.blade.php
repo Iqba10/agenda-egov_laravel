@@ -395,244 +395,127 @@
             });
         }
 
-        function openNotifModal() {
-            document.getElementById('notifModal').classList.remove('hidden');
-            document.getElementById('notifModal').classList.add('flex');
-            document.body.style.overflow = 'hidden';
-            loadAgendas('');
-        }
-
-        function closeNotifModal() {
-            document.getElementById('notifModal').classList.add('hidden');
-            document.getElementById('notifModal').classList.remove('flex');
-            document.body.style.overflow = '';
-        }
-
+        // Modal open/close handlers are defined in the notification script below
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotifModal(); });
     </script>
-</body>
-</html>
 
-{{-- Notification Modal - Multi Channel (WhatsApp + FCM) --}}
+    {{-- Notification Modal - Global One-Time Subscription --}}
 <div id="notifModal" class="fixed inset-0 z-[60] hidden items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onclick="closeNotifModal()"></div>
 
-    <div class="relative w-full sm:w-[640px] max-h-[95vh] sm:max-h-[85vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-slate-200/80 overflow-hidden"
+    <div class="relative w-full sm:w-[420px] max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-slate-200/80 overflow-hidden"
          style="animation: slideUp .22s cubic-bezier(.22,1,.36,1);">
 
-        {{-- macOS title bar --}}
-        <div class="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border-b border-slate-200 select-none shrink-0">
-            <div class="flex items-center gap-1.5">
-                <button onclick="closeNotifModal()" class="h-3 w-3 rounded-full bg-red-400 hover:bg-red-500 transition-colors group" title="Tutup">
-                    <svg class="h-3 w-3 opacity-0 group-hover:opacity-100 text-red-800" fill="none" viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                </button>
-                <span class="h-3 w-3 rounded-full bg-amber-400 cursor-default"></span>
-                <span class="h-3 w-3 rounded-full bg-emerald-400 cursor-default"></span>
-            </div>
-            <span class="flex-1 text-center text-xs font-semibold text-slate-500 -ml-10">Pengingat Agenda</span>
-        </div>
-
-        {{-- Scrollable body --}}
-        <div class="flex-1 overflow-y-auto min-h-0">
-
-            {{-- Header --}}
-            <div class="px-4 pt-4 pb-3">
-                <div class="flex items-center gap-2.5 mb-2">
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600">
+        {{-- Header --}}
+        <div class="px-5 pt-5 pb-3 shrink-0">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600">
                         <i data-lucide="bell-ring" class="h-4 w-4 text-white"></i>
                     </div>
                     <div>
-                        <p class="font-bold text-slate-900 text-sm leading-tight">Dapatkan Pengingat Agenda</p>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Pilih metode & agenda — notifikasi dikirim 1 jam sebelum agenda dimulai.</p>
+                        <p class="font-bold text-slate-900 text-sm">Notifikasi Agenda</p>
+                        <p class="text-[11px] text-slate-500">Pengingat 6 jam & 1 jam sebelum agenda</p>
                     </div>
                 </div>
-            </div>
-
-            {{-- Channel Selection --}}
-            <div class="px-4 pb-3">
-                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Metode Pengingat</p>
-                <div class="flex gap-2">
-                    <button type="button" onclick="setChannel('whatsapp')" id="channelWhatsapp"
-                            class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all border-emerald-500 bg-emerald-50 text-emerald-700">
-                        <i data-lucide="message-circle" class="h-4 w-4"></i>
-                        WhatsApp
-                    </button>
-                    <button type="button" onclick="setChannel('fcm')" id="channelFcm"
-                            class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all border-slate-200 text-slate-600 hover:border-slate-300">
-                        <i data-lucide="bell" class="h-4 w-4"></i>
-                        Notif Web
-                    </button>
-                    <button type="button" onclick="setChannel('both')" id="channelBoth"
-                            class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all border-slate-200 text-slate-600 hover:border-slate-300">
-                        <i data-lucide="layers" class="h-4 w-4"></i>
-                        Gabungan
-                    </button>
-                    <button type="button" onclick="setChannel('group')" id="channelGroup"
-                            class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all border-slate-200 text-slate-600 hover:border-slate-300">
-                        <i data-lucide="users" class="h-4 w-4"></i>
-                        Grup OPD
-                    </button>
-                </div>
-            </div>
-
-            {{-- Input Section Container - switches between single column and grid for "both" --}}
-            <div id="inputSectionContainer" class="px-4 pb-3">
-                {{-- Single mode: WhatsApp only --}}
-                <div id="waInputSection">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Nomor WhatsApp</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-medium">+62</span>
-                        <input id="notifPhone" type="tel" placeholder="812-3456-7890" autocomplete="tel"
-                               class="w-full pl-12 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder-slate-400 text-slate-800">
-                    </div>
-                </div>
-
-                {{-- Single mode: FCM only --}}
-                <div id="fcmSection" class="hidden">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Notifikasi Browser</label>
-                    <div id="fcmPermissionBox" class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 bg-slate-50">
-                        <div id="fcmStatusIcon" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
-                            <i data-lucide="bell-off" class="h-3.5 w-3.5"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p id="fcmStatusText" class="text-xs font-semibold text-slate-700 leading-tight">Notifikasi belum diizinkan</p>
-                            <p id="fcmStatusDesc" class="text-[10px] text-slate-500">Klik tombol untuk mengizinkan</p>
-                        </div>
-                        <button type="button" onclick="requestFcmPermission()" id="fcmPermitBtn"
-                                class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold rounded-lg transition-colors whitespace-nowrap">
-                            Izinkan
-                        </button>
-                    </div>
-                </div>
-
-                {{-- Combined mode: Grid layout for both WA + FCM --}}
-                <div id="bothSection" class="hidden">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {{-- WhatsApp Column --}}
-                        <div>
-                            <label class="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5 flex items-center gap-1">
-                                <i data-lucide="message-circle" class="h-3 w-3"></i> WhatsApp
-                            </label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-xs font-medium">+62</span>
-                                <input id="notifPhoneBoth" type="tel" placeholder="812-3456-7890" autocomplete="tel"
-                                       class="w-full pl-10 pr-2.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder-slate-400 text-slate-800">
-                            </div>
-                        </div>
-                        {{-- FCM Column --}}
-                        <div>
-                            <label class="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-1.5 flex items-center gap-1">
-                                <i data-lucide="bell" class="h-3 w-3"></i> Notif Browser
-                            </label>
-                            <div id="fcmPermissionBoxBoth" class="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-slate-50 h-[38px]">
-                                <div id="fcmStatusIconBoth" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-500">
-                                    <i data-lucide="bell-off" class="h-3 w-3"></i>
-                                </div>
-                                <p id="fcmStatusTextBoth" class="text-[11px] font-medium text-slate-600 flex-1 truncate">Belum diizinkan</p>
-                                <button type="button" onclick="requestFcmPermission()" id="fcmPermitBtnBoth"
-                                        class="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded transition-colors">
-                                    Izinkan
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Group mode: OPD Group selection --}}
-                <div id="groupSection" class="hidden">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-purple-600 mb-1.5 flex items-center gap-1">
-                        <i data-lucide="users" class="h-3 w-3"></i> Pilih Grup OPD
-                    </label>
-                    <select id="opdGroupSelect"
-                            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-slate-800 bg-white">
-                        <option value="">-- Pilih Grup --</option>
-                        {{-- Groups will be loaded dynamically --}}
-                    </select>
-                    <p class="text-[10px] text-slate-500 mt-1">Notifikasi akan dikirim ke grup WhatsApp OPD yang dipilih.</p>
-                </div>
-            </div>
-
-            {{-- Waktu Pengingat --}}
-            <div class="px-4 pb-3">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Waktu Pengingat</label>
-                <div class="flex gap-2">
-                    <select id="reminderMinutes" onchange="handleReminderChange(this.value)"
-                            class="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 bg-white">
-                        <option value="15">15 menit sebelum</option>
-                        <option value="30">30 menit sebelum</option>
-                        <option value="60" selected>1 jam sebelum</option>
-                        <option value="120">2 jam sebelum</option>
-                        <option value="180">3 jam sebelum</option>
-                        <option value="360">6 jam sebelum</option>
-                        <option value="1440">1 hari sebelum</option>
-                        <option value="custom">Custom...</option>
-                    </select>
-                </div>
-                {{-- Custom input (hidden by default) --}}
-                <div id="customReminderSection" class="mt-2 hidden">
-                    <div class="flex gap-2 items-center">
-                        <input id="customReminderValue" type="number" min="1" value="30" 
-                               class="w-20 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
-                        <select id="customReminderUnit" onchange="updateCustomReminder()"
-                                class="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 bg-white">
-                            <option value="1">menit</option>
-                            <option value="60">jam</option>
-                            <option value="1440">hari</option>
-                        </select>
-                        <span class="text-xs text-slate-500">sebelum</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5 mt-2">
-                        <span class="text-[11px] text-slate-400 mr-0.5 self-center">Rekomendasi:</span>
-                        <button type="button" onclick="setCustomReminder(5,1)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">5 mnt</button>
-                        <button type="button" onclick="setCustomReminder(15,1)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">15 mnt</button>
-                        <button type="button" onclick="setCustomReminder(30,1)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">30 mnt</button>
-                        <button type="button" onclick="setCustomReminder(1,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">1 jam</button>
-                        <button type="button" onclick="setCustomReminder(2,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">2 jam</button>
-                        <button type="button" onclick="setCustomReminder(3,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">3 jam</button>
-                        <button type="button" onclick="setCustomReminder(6,60)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">6 jam</button>
-                        <button type="button" onclick="setCustomReminder(1,1440)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">1 hari</button>
-                        <button type="button" onclick="setCustomReminder(2,1440)" class="px-2 py-0.5 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition">2 hari</button>
-                    </div>
-                    <p id="immediateHint" class="hidden mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
-                        <i data-lucide="zap" class="h-3 w-3"></i>
-                        Pengingat ≤15 menit akan dikirim langsung saat subscribe.
-                    </p>
-                </div>
-            </div>
-
-            {{-- Search --}}
-            <div class="px-4 pb-2.5 border-t border-slate-100 pt-3">
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i data-lucide="search" class="h-3.5 w-3.5 text-slate-400"></i>
-                    </div>
-                    <input id="notifSearch" type="text" placeholder="Cari agenda..." autocomplete="off"
-                           class="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 text-slate-800">
-                </div>
-                <p class="mt-1.5 text-[10px] text-slate-400">Pilih maksimal 5 agenda untuk diingatkan.</p>
-            </div>
-
-            {{-- Agenda list --}}
-            <div id="notifAgendaList" class="overflow-y-auto px-4 pb-2 space-y-1.5" style="max-height: 12rem;">
-                <div class="flex items-center justify-center py-6">
-                    <div class="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-            </div>
-
-            {{-- Selected count --}}
-            <div class="px-4 py-1.5 border-t border-slate-100 bg-slate-50/60">
-                <p id="notifSelectedCount" class="text-[11px] font-semibold text-slate-500">0 agenda dipilih</p>
-            </div>
-
-            {{-- Submit --}}
-            <div class="px-4 py-3 border-t border-slate-200 bg-white">
-                <div id="notifFormMsg" class="hidden mb-2 rounded-lg px-3 py-1.5 text-xs font-semibold"></div>
-                <button id="notifSubmit" type="button" onclick="submitNotifSubscribe()"
-                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors">
-                    <i data-lucide="send" class="h-4 w-4"></i>
-                    Daftar Pengingat
+                <button onclick="closeNotifModal()" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+                    <i data-lucide="x" class="h-4 w-4"></i>
                 </button>
             </div>
+        </div>
+
+        {{-- Scrollable Body --}}
+        <div class="flex-1 overflow-y-auto min-h-0 px-5 pb-5">
+
+            {{-- Subscription Status --}}
+            <div id="subStatusBox" class="hidden mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="check-circle" class="h-4 w-4 text-emerald-600"></i>
+                    <p class="text-sm font-semibold text-emerald-800">Sudah berlangganan</p>
+                </div>
+                <p class="text-[11px] text-emerald-600 mt-1">Anda akan otomatis menerima semua notifikasi agenda.</p>
+            </div>
+
+            {{-- Toggles --}}
+            <div class="space-y-2 mb-4">
+                <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                            <i data-lucide="bell" class="h-4 w-4"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">Notifikasi Browser</p>
+                            <p class="text-[10px] text-slate-500">Default & rekomendasi</p>
+                        </div>
+                    </div>
+                    <input type="checkbox" id="fcmOptIn" onchange="handleFcmToggle()" class="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                </label>
+
+                <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                            <i data-lucide="message-circle" class="h-4 w-4"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">WhatsApp</p>
+                            <p class="text-[10px] text-slate-500">Opsional</p>
+                        </div>
+                    </div>
+                    <input type="checkbox" id="whatsappOptIn" onchange="toggleWhatsappInput()" class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                </label>
+
+                {{-- WhatsApp Input --}}
+                <div id="whatsappInputSection" class="hidden space-y-2 pl-2">
+                    <input id="whatsappName" type="text" placeholder="Nama Anda" autocomplete="name"
+                           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-medium">+62</span>
+                        <input id="whatsappPhone" type="tel" placeholder="812-3456-7890" autocomplete="tel"
+                               class="w-full pl-12 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800">
+                    </div>
+                </div>
+
+                {{-- Bulk WhatsApp Representative Toggle --}}
+                <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                            <i data-lucide="users" class="h-4 w-4"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">Daftarkan Perwakilan OPD</p>
+                            <p class="text-[10px] text-slate-500">Banyak nomor sekaligus</p>
+                        </div>
+                    </div>
+                    <input type="checkbox" id="bulkWhatsappOptIn" onchange="toggleBulkWhatsappInput()" class="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                </label>
+
+                {{-- Bulk WhatsApp Input --}}
+                <div id="bulkWhatsappInputSection" class="hidden space-y-2 pl-2">
+                    <input id="bulkOpdName" type="text" placeholder="Nama OPD / Perwakilan" autocomplete="organization"
+                           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800">
+                    <textarea id="bulkContacts" rows="4" placeholder="Dimas, 08123456789&#10;Iqbal, 08129876543&#10;08521234567"
+                              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 font-mono resize-y max-h-40"></textarea>
+                    <p class="text-[10px] text-slate-500">Satu nomor per baris. Format opsional: <code class="bg-slate-100 px-1 rounded">Nama, 08123456789</code></p>
+                </div>
+            </div>
+
+            {{-- Incoming Agendas (show if subscribed) --}}
+            <div id="incomingAgendasSection" class="hidden mb-4">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Agenda Mendatang</p>
+                <div id="incomingAgendasList" class="max-h-40 overflow-y-auto space-y-1.5">
+                    <div class="flex items-center justify-center py-4">
+                        <div class="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Message & Submit --}}
+            <div id="notifFormMsg" class="hidden mb-3 rounded-lg px-3 py-2 text-xs font-semibold"></div>
+            <button id="notifSubmit" type="button" onclick="submitGlobalSubscribe()"
+                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors">
+                <i data-lucide="send" class="h-4 w-4"></i>
+                Simpan
+            </button>
         </div>
     </div>
 </div>
@@ -657,10 +540,7 @@ window.FIREBASE_CONFIG = {
 };
 window.FIREBASE_VAPID_KEY = '{{ config("services.firebase.client.vapid_key", "") }}';
 
-const selectedAgendaIds = new Set();
-let selectedChannel = 'whatsapp';
 let fcmToken = null;
-let selectedReminderMinutes = 60; // Default 1 jam
 
 function hasValidFcmToken(token) {
     return typeof token === 'string'
@@ -668,315 +548,76 @@ function hasValidFcmToken(token) {
         && !token.startsWith('browser-notification-');
 }
 
-// Handle reminder time selection
-function handleReminderChange(value) {
-    const customSection = document.getElementById('customReminderSection');
-    const immediateHint = document.getElementById('immediateHint');
-    
-    if (value === 'custom') {
-        customSection.classList.remove('hidden');
-        updateCustomReminder();
-    } else {
-        customSection.classList.add('hidden');
-        selectedReminderMinutes = parseInt(value);
-    }
-    
-    // Show immediate hint if <= 15 minutes
-    if (immediateHint) {
-        immediateHint.classList.toggle('hidden', selectedReminderMinutes > 15);
-    }
+function openNotifModal() {
+    const modal = document.getElementById('notifModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    refreshModalState();
 }
 
-// Quick-set custom reminder from recommendation chips
-function setCustomReminder(value, unit) {
-    document.getElementById('customReminderValue').value = value;
-    document.getElementById('customReminderUnit').value = unit;
-    updateCustomReminder();
+function closeNotifModal() {
+    const modal = document.getElementById('notifModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
 }
 
-function updateCustomReminder() {
-    const value = parseInt(document.getElementById('customReminderValue').value) || 1;
-    const unit = parseInt(document.getElementById('customReminderUnit').value) || 1;
-    selectedReminderMinutes = value * unit;
-
-    console.log('updateCustomReminder - value:', value, 'unit:', unit, 'result:', selectedReminderMinutes);
-
-    if (selectedReminderMinutes < 1) selectedReminderMinutes = 1;
-
-    // Show immediate hint if <= 15 minutes
-    const immediateHint = document.getElementById('immediateHint');
-    if (immediateHint) {
-        immediateHint.classList.toggle('hidden', selectedReminderMinutes > 15);
-    }
-}
-
-const STATUS_STYLES = {
-    terjadwal:   { label: 'Terjadwal',   cls: 'bg-amber-100 text-amber-700 border-amber-200' },
-    berlangsung: { label: 'Berlangsung', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
-    selesai:     { label: 'Selesai',     cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-    dibatalkan:  { label: 'Dibatalkan',  cls: 'bg-red-100 text-red-600 border-red-200' },
-};
-
-function setChannel(channel) {
-    selectedChannel = channel;
-    
-    // Update button styles
-    const channels = ['whatsapp', 'fcm', 'both', 'group'];
-    const activeColors = {
-        whatsapp: 'border-emerald-500 bg-emerald-50 text-emerald-700',
-        fcm: 'border-blue-500 bg-blue-50 text-blue-700',
-        both: 'border-purple-500 bg-purple-50 text-purple-700',
-        group: 'border-amber-500 bg-amber-50 text-amber-700',
-    };
-
-    channels.forEach(ch => {
-        const btn = document.getElementById('channel' + ch.charAt(0).toUpperCase() + ch.slice(1));
-        if (ch === channel) {
-            btn.className = `flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${activeColors[ch]}`;
-        } else {
-            btn.className = 'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all border-slate-200 text-slate-600 hover:border-slate-300';
-        }
-    });
-
-    // Show/hide input sections - 4 mutually exclusive views
-    const waSection = document.getElementById('waInputSection');
-    const fcmSection = document.getElementById('fcmSection');
-    const bothSection = document.getElementById('bothSection');
-    const groupSection = document.getElementById('groupSection');
-
-    if (channel === 'whatsapp') {
-        waSection.classList.remove('hidden');
-        fcmSection.classList.add('hidden');
-        bothSection.classList.add('hidden');
-        groupSection.classList.add('hidden');
-    } else if (channel === 'fcm') {
-        waSection.classList.add('hidden');
-        fcmSection.classList.remove('hidden');
-        bothSection.classList.add('hidden');
-        groupSection.classList.add('hidden');
-        checkFcmPermission();
-    } else if (channel === 'both') {
-        waSection.classList.add('hidden');
-        fcmSection.classList.add('hidden');
-        bothSection.classList.remove('hidden');
-        groupSection.classList.add('hidden');
-        checkFcmPermission();
-    } else if (channel === 'group') {
-        waSection.classList.add('hidden');
-        fcmSection.classList.add('hidden');
-        bothSection.classList.add('hidden');
-        groupSection.classList.remove('hidden');
-        loadOpdGroups();
-    }
-    
+function refreshModalState() {
+    const fcmCheckbox = document.getElementById('fcmOptIn');
+    const permission = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+    fcmCheckbox.checked = permission === 'granted' && hasValidFcmToken(fcmToken);
+    loadIncomingAgendas();
     lucide.createIcons();
 }
 
-function checkFcmPermission() {
-    // Single mode elements
-    const statusIcon = document.getElementById('fcmStatusIcon');
-    const statusText = document.getElementById('fcmStatusText');
-    const statusDesc = document.getElementById('fcmStatusDesc');
-    const permitBtn = document.getElementById('fcmPermitBtn');
-    
-    // Both mode elements (compact version)
-    const statusIconBoth = document.getElementById('fcmStatusIconBoth');
-    const statusTextBoth = document.getElementById('fcmStatusTextBoth');
-    const permitBtnBoth = document.getElementById('fcmPermitBtnBoth');
-    
+async function handleFcmToggle() {
+    const cb = document.getElementById('fcmOptIn');
+    if (!cb.checked) return;
+
     if (!('Notification' in window)) {
-        // Single mode
-        statusIcon.innerHTML = '<i data-lucide="alert-circle" class="h-3.5 w-3.5"></i>';
-        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600';
-        statusText.textContent = 'Browser tidak mendukung';
-        statusDesc.textContent = 'Gunakan browser modern seperti Chrome atau Firefox';
-        permitBtn.classList.add('hidden');
-        // Both mode
-        statusIconBoth.innerHTML = '<i data-lucide="alert-circle" class="h-3 w-3"></i>';
-        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-600';
-        statusTextBoth.textContent = 'Tidak didukung';
-        permitBtnBoth.classList.add('hidden');
+        showFormMsg('Browser tidak mendukung notifikasi.', false);
+        cb.checked = false;
         return;
     }
-    
-    const permission = Notification.permission;
-    
-    if (permission === 'granted' && hasValidFcmToken(fcmToken)) {
-        // Single mode
-        statusIcon.innerHTML = '<i data-lucide="check-circle" class="h-3.5 w-3.5"></i>';
-        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600';
-        statusText.textContent = 'Notifikasi diizinkan';
-        statusDesc.textContent = 'Token browser valid dan siap menerima notifikasi';
-        permitBtn.classList.add('hidden');
-        // Both mode
-        statusIconBoth.innerHTML = '<i data-lucide="check-circle" class="h-3 w-3"></i>';
-        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-600';
-        statusTextBoth.textContent = 'Siap';
-        permitBtnBoth.classList.add('hidden');
-    } else if (permission === 'denied') {
-        // Single mode
-        statusIcon.innerHTML = '<i data-lucide="x-circle" class="h-3.5 w-3.5"></i>';
-        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600';
-        statusText.textContent = 'Notifikasi diblokir';
-        statusDesc.textContent = 'Ubah di pengaturan browser Anda';
-        permitBtn.classList.add('hidden');
-        // Both mode
-        statusIconBoth.innerHTML = '<i data-lucide="x-circle" class="h-3 w-3"></i>';
-        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-600';
-        statusTextBoth.textContent = 'Diblokir';
-        permitBtnBoth.classList.add('hidden');
-    } else {
-        // Single mode
-        statusIcon.innerHTML = '<i data-lucide="bell-off" class="h-3.5 w-3.5"></i>';
-        statusIcon.className = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500';
-        statusText.textContent = 'Notifikasi belum diizinkan';
-        statusDesc.textContent = 'Klik tombol untuk mengizinkan dan membuat token browser';
-        permitBtn.classList.remove('hidden');
-        // Both mode
-        statusIconBoth.innerHTML = '<i data-lucide="bell-off" class="h-3 w-3"></i>';
-        statusIconBoth.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-500';
-        statusTextBoth.textContent = 'Belum siap';
-        permitBtnBoth.classList.remove('hidden');
-    }
-    
-    lucide.createIcons();
-}
 
-async function requestFcmPermission() {
-    const permitBtn = document.getElementById('fcmPermitBtn');
-    const permitBtnBoth = document.getElementById('fcmPermitBtnBoth');
-    
-    // Disable both buttons
-    permitBtn.disabled = true;
-    permitBtn.textContent = 'Memproses...';
-    permitBtnBoth.disabled = true;
-    permitBtnBoth.textContent = '...';
-    
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+        showFormMsg('Izin notifikasi browser diperlukan.', false);
+        cb.checked = false;
+        return;
+    }
+
+    if (!window.FirebaseNotification) {
+        showFormMsg('Script Firebase belum termuat.', false);
+        cb.checked = false;
+        return;
+    }
+
     try {
-        const permission = await Notification.requestPermission();
-        
-        if (permission === 'granted') {
-            if (!window.FirebaseNotification) {
-                throw new Error('Script Firebase tidak termuat di browser ini.');
-            }
-
-            const initialized = await window.FirebaseNotification.init();
-            if (!initialized) {
-                throw new Error('Konfigurasi browser notification belum lengkap. Periksa VAPID key Firebase.');
-            }
-
-            fcmToken = await window.FirebaseNotification.getToken();
-            if (!hasValidFcmToken(fcmToken)) {
-                throw new Error('Gagal membuat token browser yang valid.');
-            }
+        const initialized = await window.FirebaseNotification.init();
+        if (!initialized) {
+            throw new Error('Konfigurasi Firebase belum lengkap.');
         }
-        
-        checkFcmPermission();
-    } catch (error) {
-        console.error('FCM permission error:', error);
-        showFormMsg('Gagal mengaktifkan notifikasi: ' + error.message, false);
-    } finally {
-        permitBtn.disabled = false;
-        permitBtn.textContent = 'Izinkan';
-        permitBtnBoth.disabled = false;
-        permitBtnBoth.textContent = 'Izinkan';
-    }
-}
-
-function loadOpdGroups() {
-    const select = document.getElementById('opdGroupSelect');
-    select.innerHTML = '<option value="">-- Pilih Grup --</option><option value="" disabled>Memuat...</option>';
-
-    fetch('/api/opd-groups')
-        .then(r => r.json())
-        .then(data => {
-            select.innerHTML = '<option value="">-- Pilih Grup --</option>';
-            if (data.groups && data.groups.length > 0) {
-                data.groups.forEach(group => {
-                    if (group.is_active) {
-                        const option = document.createElement('option');
-                        option.value = group.id;
-                        option.textContent = group.name;
-                        select.appendChild(option);
-                    }
-                });
-            } else {
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = 'Tidak ada grup aktif';
-                option.disabled = true;
-                select.appendChild(option);
-            }
-        })
-        .catch(() => {
-            select.innerHTML = '<option value="">-- Pilih Grup --</option><option value="" disabled>Gagal memuat grup</option>';
-        });
-}
-
-let notifDebounce;
-document.getElementById('notifSearch').addEventListener('input', function() {
-    clearTimeout(notifDebounce);
-    notifDebounce = setTimeout(() => loadAgendas(this.value.trim()), 350);
-});
-
-function loadAgendas(q) {
-    const list = document.getElementById('notifAgendaList');
-    list.innerHTML = `<div class="flex items-center justify-center py-8"><div class="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>`;
-
-    fetch(`{{ route('agenda.notify.search') }}?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
-        .then(items => renderAgendaList(items))
-        .catch(() => {
-            list.innerHTML = `<p class="text-center text-sm text-slate-400 py-8">Gagal memuat agenda.</p>`;
-        });
-}
-
-function renderAgendaList(items) {
-    const list = document.getElementById('notifAgendaList');
-    if (!items.length) {
-        list.innerHTML = `<p class="text-center text-sm text-slate-400 py-8">Tidak ada agenda mendatang.</p>`;
-        return;
-    }
-
-    list.innerHTML = items.map(a => {
-        const st = STATUS_STYLES[a.status] || { label: a.status, cls: 'bg-slate-100 text-slate-600 border-slate-200' };
-        const checked = selectedAgendaIds.has(a.id);
-        return `<label class="flex items-start gap-3 rounded-xl border cursor-pointer p-3 transition-all ${checked ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}" data-agenda-id="${a.id}">
-            <div class="pt-0.5 shrink-0">
-                <div class="h-4 w-4 rounded border-2 flex items-center justify-center transition-all ${checked ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}">
-                    ${checked ? '<svg class="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5L8.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-                </div>
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-xs font-bold text-slate-900 leading-tight truncate">${a.perihal_kegiatan}</p>
-                <p class="text-[11px] text-slate-500 mt-0.5 truncate">${a.waktu_mulai || '-'} &bull; ${a.tempat || '-'}</p>
-                <span class="mt-1 inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${st.cls}">${st.label}</span>
-            </div>
-        </label>`;
-    }).join('');
-
-    list.querySelectorAll('label[data-agenda-id]').forEach(el => {
-        el.addEventListener('click', () => toggleAgendaSelection(parseInt(el.dataset.agendaId)));
-    });
-}
-
-function toggleAgendaSelection(id) {
-    if (selectedAgendaIds.has(id)) {
-        selectedAgendaIds.delete(id);
-    } else {
-        if (selectedAgendaIds.size >= 5) {
-            showFormMsg('Maksimal 5 agenda dapat dipilih.', false);
-            return;
+        fcmToken = await window.FirebaseNotification.getToken();
+        if (!hasValidFcmToken(fcmToken)) {
+            throw new Error('Token browser tidak valid.');
         }
-        selectedAgendaIds.add(id);
+        showFormMsg('Notifikasi browser aktif.', true);
+    } catch (err) {
+        cb.checked = false;
+        showFormMsg('Gagal mengaktifkan notifikasi: ' + err.message, false);
     }
-    updateSelectedCount();
-    loadAgendas(document.getElementById('notifSearch').value.trim());
 }
 
-function updateSelectedCount() {
-    const n = selectedAgendaIds.size;
-    document.getElementById('notifSelectedCount').textContent = n === 0 ? '0 agenda dipilih' : `${n} agenda dipilih`;
+function toggleWhatsappInput() {
+    const cb = document.getElementById('whatsappOptIn');
+    document.getElementById('whatsappInputSection').classList.toggle('hidden', !cb.checked);
+}
+
+function toggleBulkWhatsappInput() {
+    const cb = document.getElementById('bulkWhatsappOptIn');
+    document.getElementById('bulkWhatsappInputSection').classList.toggle('hidden', !cb.checked);
 }
 
 function normalizePhone(phone) {
@@ -989,86 +630,79 @@ function normalizePhone(phone) {
     return cleaned;
 }
 
-async function submitNotifSubscribe() {
-    const btn = document.getElementById('notifSubmit');
-    const phoneInput = document.getElementById('notifPhone');
-    const phoneInputBoth = document.getElementById('notifPhoneBoth');
-    
-    // Validation
-    if (selectedAgendaIds.size === 0) {
-        showFormMsg('Pilih minimal satu agenda.', false);
-        return;
-    }
-    
-    const needsPhone = selectedChannel === 'whatsapp' || selectedChannel === 'both';
-    const needsFcm = selectedChannel === 'fcm' || selectedChannel === 'both';
-    const needsGroup = selectedChannel === 'group';
+function parseBulkContacts(text) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const contacts = [];
+    lines.forEach(line => {
+        const parts = line.split(',').map(p => p.trim()).filter(Boolean);
+        const numbers = parts.filter(p => /\d/.test(p));
+        const names = parts.filter(p => !/\d/.test(p));
+        numbers.forEach(num => {
+            const normalized = normalizePhone(num);
+            if (normalized.length >= 10) {
+                contacts.push({
+                    name: names[0] || null,
+                    phone: normalized,
+                });
+            }
+        });
+    });
+    return contacts;
+}
 
-    let phone = null;
-    if (needsPhone) {
-        // Get phone from the correct input based on channel
-        const rawPhone = selectedChannel === 'both'
-            ? phoneInputBoth.value.trim()
-            : phoneInput.value.trim();
-        phone = normalizePhone(rawPhone);
+async function submitGlobalSubscribe() {
+    const btn = document.getElementById('notifSubmit');
+    const fcmOptIn = document.getElementById('fcmOptIn').checked;
+    const whatsappOptIn = document.getElementById('whatsappOptIn').checked;
+    const bulkOptIn = document.getElementById('bulkWhatsappOptIn').checked;
+
+    let hasAction = false;
+    let payload = {};
+
+    if (fcmOptIn) {
+        if (!hasValidFcmToken(fcmToken)) {
+            showFormMsg('Izinkan notifikasi browser terlebih dahulu.', false);
+            return;
+        }
+        payload.fcm_token = fcmToken;
+        hasAction = true;
+    }
+
+    if (whatsappOptIn) {
+        const name = document.getElementById('whatsappName').value.trim();
+        const phone = normalizePhone(document.getElementById('whatsappPhone').value.trim());
         if (phone.length < 10) {
             showFormMsg('Masukkan nomor WhatsApp yang valid.', false);
             return;
         }
+        payload.whatsapp_opt_in = true;
+        payload.whatsapp_name = name;
+        payload.whatsapp_phone = phone;
+        hasAction = true;
     }
 
-    if (needsFcm && !hasValidFcmToken(fcmToken) && Notification.permission !== 'granted') {
-        showFormMsg('Izinkan notifikasi browser terlebih dahulu.', false);
-        return;
-    }
-
-    let opdGroupId = null;
-    if (needsGroup) {
-        opdGroupId = document.getElementById('opdGroupSelect').value;
-        if (!opdGroupId) {
-            showFormMsg('Pilih grup OPD terlebih dahulu.', false);
+    if (bulkOptIn) {
+        const raw = document.getElementById('bulkContacts').value;
+        const contacts = parseBulkContacts(raw);
+        if (contacts.length === 0) {
+            showFormMsg('Masukkan minimal satu nomor perwakilan OPD yang valid.', false);
             return;
         }
+        payload.bulk_contacts = contacts;
+        payload.bulk_opd_name = document.getElementById('bulkOpdName').value.trim();
+        hasAction = true;
+    }
+
+    if (!hasAction) {
+        showFormMsg('Pilih minimal satu metode notifikasi.', false);
+        return;
     }
 
     btn.disabled = true;
     btn.innerHTML = '<div class="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Memproses...';
 
     try {
-        if (needsFcm && !hasValidFcmToken(fcmToken) && window.FirebaseNotification) {
-            try {
-                const initialized = await window.FirebaseNotification.init();
-                if (!initialized) {
-                    showFormMsg('Konfigurasi notifikasi browser belum lengkap. Hubungi admin untuk mengisi VAPID key Firebase.', false);
-                    return;
-                }
-                await window.FirebaseNotification.requestPermission();
-                fcmToken = await window.FirebaseNotification.getToken();
-                if (!hasValidFcmToken(fcmToken)) {
-                    showFormMsg('Gagal mendapatkan token browser yang valid. Coba aktifkan ulang notifikasi.', false);
-                    return;
-                }
-            } catch (tokenErr) {
-                console.error('FCM token init error:', tokenErr);
-                showFormMsg('Gagal mendapatkan token browser. Coba aktifkan notifikasi ulang.', false);
-                return;
-            }
-        }
-
-        const payload = {
-            channel: selectedChannel,
-            agenda_ids: [...selectedAgendaIds],
-            reminder_minutes: selectedReminderMinutes,
-        };
-
-        console.log('Sending payload:', payload);
-        console.log('selectedReminderMinutes:', selectedReminderMinutes);
-
-        if (phone) payload.phone_number = phone;
-        if (hasValidFcmToken(fcmToken)) payload.fcm_token = fcmToken;
-        if (opdGroupId) payload.opd_group_id = opdGroupId;
-
-        const res = await fetch('{{ route('notify.subscribe') }}', {
+        const res = await fetch('{{ route('api.fcm.register') }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1079,14 +713,11 @@ async function submitNotifSubscribe() {
         });
 
         const data = await res.json();
-
         if (data.success) {
-            showFormMsg(data.message || 'Berhasil! Anda akan menerima pengingat.', true);
-            selectedAgendaIds.clear();
-            phoneInput.value = '';
-            phoneInputBoth.value = '';
-            updateSelectedCount();
-            loadAgendas('');
+            showFormMsg(data.message || 'Berhasil menyimpan langganan.', true);
+            document.getElementById('subStatusBox').classList.remove('hidden');
+            document.getElementById('incomingAgendasSection').classList.remove('hidden');
+            loadIncomingAgendas();
         } else {
             const errMsg = data.errors
                 ? Object.values(data.errors).flat().join(' ')
@@ -1097,9 +728,37 @@ async function submitNotifSubscribe() {
         showFormMsg('Gagal menghubungi server. Coba lagi.', false);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="send" class="h-4 w-4"></i> Daftar Pengingat';
+        btn.innerHTML = '<i data-lucide="send" class="h-4 w-4"></i> Simpan';
         lucide.createIcons();
     }
+}
+
+function loadIncomingAgendas() {
+    const list = document.getElementById('incomingAgendasList');
+    const section = document.getElementById('incomingAgendasSection');
+    section.classList.remove('hidden');
+    list.innerHTML = '<div class="flex items-center justify-center py-4"><div class="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>';
+
+    fetch('/api/agenda/incoming?limit=20')
+        .then(r => r.json())
+        .then(items => {
+            if (!items.length) {
+                list.innerHTML = '<p class="text-center text-xs text-slate-400 py-3">Tidak ada agenda mendatang.</p>';
+                return;
+            }
+            list.innerHTML = items.map(a => {
+                return `<div class="flex items-start gap-2 rounded-lg border border-slate-200 p-2 bg-slate-50">
+                    <div class="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-slate-800 truncate">${a.perihal_kegiatan}</p>
+                        <p class="text-[10px] text-slate-500">${a.tanggal_mulai || '-'} ${a.waktu_mulai || ''} &bull; ${a.tempat || '-'}</p>
+                    </div>
+                </div>`;
+            }).join('');
+        })
+        .catch(() => {
+            list.innerHTML = '<p class="text-center text-xs text-slate-400 py-3">Gagal memuat agenda.</p>';
+        });
 }
 
 function showFormMsg(msg, success) {
@@ -1123,3 +782,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+</body>
+</html>

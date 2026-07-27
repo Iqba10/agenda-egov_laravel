@@ -12,6 +12,9 @@ class FcmToken extends Model
         'subscribed_agendas',
         'sent_reminders',
         'is_active',
+        'whatsapp_opt_in',
+        'whatsapp_name',
+        'whatsapp_phone',
     ];
 
     protected function casts(): array
@@ -20,7 +23,14 @@ class FcmToken extends Model
             'subscribed_agendas' => 'array',
             'sent_reminders'     => 'array',
             'is_active'          => 'boolean',
+            'whatsapp_opt_in'    => 'boolean',
         ];
+    }
+
+    public function scopeWhatsappSubscribers($query)
+    {
+        return $query->where('whatsapp_opt_in', true)
+            ->whereNotNull('whatsapp_phone');
     }
 
     public function scopeActive($query)

@@ -27,6 +27,8 @@ class Agenda extends Model
         'diinput_oleh',
         'created_by',
         'reminder_sent_at',
+        'reminder_6h_sent_at',
+        'reminder_1h_sent_at',
     ];
 
     protected function casts(): array
@@ -36,6 +38,8 @@ class Agenda extends Model
             'waktu_mulai' => 'datetime',
             'waktu_selesai' => 'datetime',
             'reminder_sent_at' => 'datetime',
+            'reminder_6h_sent_at' => 'datetime',
+            'reminder_1h_sent_at' => 'datetime',
         ];
     }
 

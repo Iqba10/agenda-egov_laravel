@@ -23,9 +23,9 @@ class AgendaEgovFlowTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'user']);
 
-        // Middleware redirects regular users to profile page with warning
+        // Middleware redirects regular users to public agenda page with warning
         $this->actingAs($user)->get(route('admin.dashboard'))
-            ->assertRedirect(route('profile.edit'));
+            ->assertRedirect(route('agenda.index'));
     }
 
     public function test_agenda_effective_status_follows_schedule_unless_cancelled(): void

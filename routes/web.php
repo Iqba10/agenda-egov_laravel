@@ -19,9 +19,9 @@ Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('
 Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 Route::get('/api/weather', WeatherController::class)->name('api.weather');
 Route::get('/api/agenda-search', [NotificationController::class, 'search'])->name('agenda.notify.search');
+Route::get('/api/agenda/incoming', [NotificationController::class, 'incoming'])->name('api.agenda.incoming');
 Route::get('/api/notify/status', [NotificationController::class, 'status'])->name('notify.status');
-Route::post('/api/fcm/register', [NotificationController::class, 'registerFcmToken'])->name('fcm.register')->middleware('throttle:30,1');
-Route::post('/notify/subscribe', [NotificationController::class, 'subscribe'])->name('notify.subscribe')->middleware('throttle:10,5');
+Route::post('/api/fcm/register', [NotificationController::class, 'registerFcmToken'])->name('api.fcm.register')->middleware('throttle:30,1');
 
 // Bulk Registration (WhatsApp)
 Route::get('/notify/bulk', [BulkRegistrationController::class, 'index'])->name('notify.bulk');

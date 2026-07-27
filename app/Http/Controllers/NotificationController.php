@@ -16,7 +16,155 @@ class NotificationController extends Controller
     ) {}
 
     /**
-     * Search agenda untuk modal notifikasi
+     * Global one-time subscription endpoint.
+     *
+     * Accepts:
+     * - fcm_token (string, required if browser notifications enabled)
+     * - device_name (string, optional)
+     * - whatsapp_opt_in (bool)
+     * - whatsapp_name (string)
+     * - whatsapp_phone (string)
+     * - bulk_opd_name (string, required if bulk_contacts provided)
+     * - bulk_contacts (array of {name, phone})
+     */
+    public function registerFcmToken(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'fcm_token'       => ['nullable', 'string', 'max:500'],
+            'device_name'     => ['nullable', 'string', 'max:255'],
+            'whatsapp_opt_in' => ['boolean'],
+            'whatsapp_name'   => ['nullable', 'string', 'max:100'],
+            'whatsapp_phone'  => ['nullable', 'string', 'max:20'],
+            'bulk_opd_name'   => ['nullable', 'string', 'max:150'],
+            'bulk_contacts'   => ['nullable', 'array'],
+            'bulk_contacts.*.name'  => ['nullable', 'string', 'max:100'],
+            'bulk_contacts.*.phone' => ['required_with:bulk_contacts', 'string', 'max:20'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $fcmToken = $data['fcm_token'] ?? null;
+        $hasFcm = !empty($fcmToken);
+        $hasWa = !empty($data['whatsapp_opt_in']) && !empty($data['whatsapp_phone']);
+        $hasBulk = !empty($data['bulk_contacts']);
+
+        if (!$hasFcm && !$hasWa && !$hasBulk) {
+            return response()->json(['success' => false, 'message' => 'Pilih minimal satu metode notifikasi.'], 422);
+        }
+
+        try {
+            $savedFcmToken = null;
+            $bulkAdded = 0;
+            $bulkSkipped = 0;
+
+            if ($hasFcm) {
+                $savedFcmToken = $this->reminderService->registerFcmToken(
+                    $fcmToken,
+                    $data['device_name'] ?? null,
+                    [
+                        'opt_in' => $hasWa,
+                        'name'   => $data['whatsapp_name'] ?? null,
+                        'phone'  => $data['whatsapp_phone'] ?? null,
+                    ]
+                );
+            } elseif ($hasWa) {
+                // WhatsApp-only subscription without a real FCM token
+                $placeholder = 'whatsapp-user-' . $this->normalizePhone($data['whatsapp_phone']);
+                $savedFcmToken = $this->reminderService->registerFcmToken(
+                    $placeholder,
+                    $data['device_name'] ?? 'WhatsApp Subscriber',
+                    [
+                        'opt_in' => true,
+                        'name'   => $data['whatsapp_name'] ?? null,
+                        'phone'  => $data['whatsapp_phone'] ?? null,
+                    ]
+                );
+                // Mark inactive because it is not a real browser token
+                $savedFcmToken->update(['is_active' => false]);
+            }
+
+            if ($hasBulk) {
+                $opdName = $data['bulk_opd_name'] ?: 'Perwakilan OPD';
+                foreach ($data['bulk_contacts'] as $contact) {
+                    $phone = $this->normalizePhone($contact['phone'] ?? '');
+                    if (strlen($phone) < 10) {
+                        $bulkSkipped++;
+                        continue;
+                    }
+
+                    FcmToken::updateOrCreate(
+                        ['token' => 'whatsapp-opd-' . $phone],
+                        [
+                            'device_name'     => 'WhatsApp OPD - ' . $opdName,
+                            'is_active'       => false,
+                            'whatsapp_opt_in' => true,
+                            'whatsapp_name'   => !empty($contact['name']) ? $contact['name'] : $opdName,
+                            'whatsapp_phone'  => $phone,
+                        ]
+                    );
+
+                    $bulkAdded++;
+                }
+            }
+
+            $messages = [];
+            if ($savedFcmToken) {
+                $messages[] = 'langganan notifikasi agenda';
+            }
+            if ($bulkAdded > 0) {
+                $messages[] = "{$bulkAdded} nomor perwakilan OPD";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil menyimpan ' . ($messages ? implode(' dan ', $messages) : 'langganan') . '.',
+                'token_id' => $savedFcmToken?->id,
+                'bulk_added' => $bulkAdded,
+                'bulk_skipped' => $bulkSkipped,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => config('app.debug') ? $e->getMessage() : 'Gagal menyimpan langganan.',
+            ], 500);
+        }
+    }
+
+    /**
+     * List upcoming agendas for the modal preview.
+     */
+    public function incoming(Request $request): JsonResponse
+    {
+        $limit = min((int) $request->input('limit', 20), 50);
+
+        $agendas = Agenda::query()
+            ->select(['id', 'slug', 'perihal_kegiatan', 'waktu_mulai', 'tempat', 'status'])
+            ->where('status', '!=', 'dibatalkan')
+            ->where('waktu_mulai', '>', now())
+            ->orderBy('waktu_mulai', 'asc')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($a) => [
+                'id'               => $a->id,
+                'slug'             => $a->slug,
+                'perihal_kegiatan' => $a->perihal_kegiatan,
+                'tanggal_mulai'    => $a->waktu_mulai?->translatedFormat('d M Y'),
+                'waktu_mulai'      => $a->waktu_mulai?->translatedFormat('H:i'),
+                'tempat'           => $a->tempat,
+                'status'           => $a->status,
+            ]);
+
+        return response()->json($agendas);
+    }
+
+    /**
+     * Search agenda for legacy/admin usage.
      */
     public function search(Request $request): JsonResponse
     {
@@ -44,169 +192,7 @@ class NotificationController extends Controller
     }
 
     /**
-     * Subscribe ke agenda dengan pilihan channel (whatsapp/fcm/both)
-     */
-    public function subscribe(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'channel'         => ['required', 'in:whatsapp,fcm,both,group'],
-            'agenda_ids'      => ['required', 'array', 'min:1', 'max:10'],
-            'agenda_ids.*'    => ['integer', 'exists:agenda,id'],
-            'phone_number'    => ['required_if:channel,whatsapp,both', 'nullable', 'string', 'max:20'],
-            'fcm_token'       => ['required_if:channel,fcm,both', 'nullable', 'string', 'max:500'],
-            'opd_group_id'    => ['required_if:channel,group', 'nullable', 'integer', 'exists:opd_groups,id'],
-            'nama'            => ['nullable', 'string', 'max:100'],
-            'reminder_minutes'=> ['nullable', 'integer', 'min:1'], // No max — user can set any time
-        ], [
-            'agenda_ids.required'       => 'Pilih minimal satu agenda.',
-            'agenda_ids.min'            => 'Pilih minimal satu agenda.',
-            'phone_number.required_if'  => 'Nomor WhatsApp diperlukan untuk channel ini.',
-            'fcm_token.required_if'     => 'Izinkan notifikasi browser terlebih dahulu.',
-            'opd_group_id.required_if'  => 'Pilih grup OPD terlebih dahulu.',
-            'opd_group_id.exists'       => 'Grup OPD tidak valid.',
-            'reminder_minutes.min'      => 'Waktu pengingat minimal 1 menit.',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
-
-        $data = $validator->validated();
-        $channel = $data['channel'];
-
-        // Check service availability
-        $serviceStatus = $this->reminderService->getServiceStatus();
-
-        if ($channel === 'whatsapp' && !$serviceStatus['whatsapp']) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Layanan WhatsApp belum dikonfigurasi.',
-            ], 503);
-        }
-
-        if ($channel === 'fcm' && !$serviceStatus['fcm']) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Layanan notifikasi browser belum dikonfigurasi.',
-            ], 503);
-        }
-
-        if ($channel === 'group' && !$serviceStatus['whatsapp']) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Layanan WhatsApp belum dikonfigurasi untuk grup OPD.',
-            ], 503);
-        }
-
-        try {
-            \Log::info('NotificationController@subscribe - RAW REQUEST', [
-                'all_input' => $request->all(),
-                'validated_data' => $data,
-                'channel' => $channel,
-            ]);
-
-            // Debug: cek data yang diterima
-            $debugInfo = [
-                'received_channel' => $channel,
-                'received_agenda_ids' => $data['agenda_ids'] ?? [],
-                'received_phone' => isset($data['phone_number']) ? substr($data['phone_number'], 0, 6) . '***' : null,
-                'received_fcm_token' => isset($data['fcm_token']) ? substr($data['fcm_token'], 0, 20) . '...' : null,
-            ];
-
-            // Subscribe ke semua agenda yang dipilih
-            $results = $this->reminderService->subscribeToMultipleAgendas($data);
-
-            \Log::info('NotificationController@subscribe - RESULTS', [
-                'results_count' => count($results),
-                'results' => $results,
-            ]);
-
-            // Cek apakah benar-benar ada yang tersimpan
-            if (empty($results) && in_array($channel, ['whatsapp', 'both'])) {
-                \Log::warning('NotificationController@subscribe - NO RESULTS but expected WhatsApp subscription');
-            }
-
-            $channelLabel = match ($channel) {
-                'whatsapp' => 'WhatsApp',
-                'fcm'      => 'notifikasi browser',
-                'both'     => 'WhatsApp dan notifikasi browser',
-                'group'    => 'grup OPD',
-            };
-
-            // Format waktu pengingat untuk pesan
-            $reminderMinutes = $data['reminder_minutes'] ?? 60;
-            $reminderLabel = $this->formatReminderTime($reminderMinutes);
-
-            \Log::info('Subscribe success message', [
-                'reminder_minutes_input' => $reminderMinutes,
-                'reminder_label' => $reminderLabel,
-                'final_message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} {$reminderLabel} sebelum agenda dimulai.",
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => "Terdaftar! Anda akan diingatkan via {$channelLabel} {$reminderLabel} sebelum agenda dimulai.",
-                'results_count' => count($results),
-                'debug' => $debugInfo,
-            ]);
-
-        } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
-        } catch (\Throwable $e) {
-            \Log::error('NotificationController@subscribe - ERROR', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            report($e);
-            return response()->json([
-                'success' => false,
-                'message' => config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan. Silakan coba lagi.',
-                'debug_error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Register FCM token dari browser
-     */
-    public function registerFcmToken(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'token'       => ['required', 'string', 'max:500'],
-            'device_name' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
-
-        try {
-            $fcmToken = $this->reminderService->registerFcmToken(
-                $request->input('token'),
-                $request->input('device_name')
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Token terdaftar.',
-                'token_id' => $fcmToken->id,
-            ]);
-        } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
-        } catch (\Throwable $e) {
-            report($e);
-            return response()->json(['success' => false, 'message' => 'Gagal mendaftarkan token.'], 500);
-        }
-    }
-
-    /**
-     * Get notification service status
+     * Get notification service status.
      */
     public function status(): JsonResponse
     {
@@ -216,28 +202,13 @@ class NotificationController extends Controller
         ]);
     }
 
-    /**
-     * Format reminder time for display
-     */
-    private function formatReminderTime(int $minutes): string
+    private function normalizePhone(?string $phone): string
     {
-        if ($minutes < 60) {
-            return "{$minutes} menit";
+        $phone = preg_replace('/[^0-9]/', '', $phone ?? '');
+        $phone = ltrim($phone, '0');
+        if (!str_starts_with($phone, '62')) {
+            $phone = '62' . $phone;
         }
-        
-        $hours = $minutes / 60;
-        
-        if ($minutes % 60 === 0) {
-            if ($hours >= 24) {
-                $days = $hours / 24;
-                return $days == 1 ? "1 hari" : "{$days} hari";
-            }
-            return $hours == 1 ? "1 jam" : "{$hours} jam";
-        }
-        
-        // Mixed hours and minutes
-        $wholeHours = floor($hours);
-        $remainingMinutes = $minutes % 60;
-        return "{$wholeHours} jam {$remainingMinutes} menit";
+        return $phone;
     }
 }
