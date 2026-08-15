@@ -21,24 +21,16 @@ class NotificationController extends Controller
      * Accepts:
      * - fcm_token (string, required if browser notifications enabled)
      * - device_name (string, optional)
-     * - whatsapp_opt_in (bool)
-     * - whatsapp_name (string)
-     * - whatsapp_phone (string)
-     * - bulk_opd_name (string, required if bulk_contacts provided)
-     * - bulk_contacts (array of {name, phone})
+     * - whatsapp_contacts (array of {name, phone})
      */
     public function registerFcmToken(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'fcm_token'       => ['nullable', 'string', 'max:500'],
-            'device_name'     => ['nullable', 'string', 'max:255'],
-            'whatsapp_opt_in' => ['boolean'],
-            'whatsapp_name'   => ['nullable', 'string', 'max:100'],
-            'whatsapp_phone'  => ['nullable', 'string', 'max:20'],
-            'bulk_opd_name'   => ['nullable', 'string', 'max:150'],
-            'bulk_contacts'   => ['nullable', 'array'],
-            'bulk_contacts.*.name'  => ['nullable', 'string', 'max:100'],
-            'bulk_contacts.*.phone' => ['required_with:bulk_contacts', 'string', 'max:20'],
+            'fcm_token'         => ['nullable', 'string', 'max:500'],
+            'device_name'       => ['nullable', 'string', 'max:255'],
+            'whatsapp_contacts' => ['nullable', 'array', 'max:20'],
+            'whatsapp_contacts.*.name'  => ['nullable', 'string', 'max:100'],
+            'whatsapp_contacts.*.phone' => ['required_with:whatsapp_contacts', 'string', 'min:10', 'max:20'],
         ]);
 
         if ($validator->fails()) {
@@ -48,82 +40,76 @@ class NotificationController extends Controller
         $data = $validator->validated();
         $fcmToken = $data['fcm_token'] ?? null;
         $hasFcm = !empty($fcmToken);
-        $hasWa = !empty($data['whatsapp_opt_in']) && !empty($data['whatsapp_phone']);
-        $hasBulk = !empty($data['bulk_contacts']);
+        $hasWa = !empty($data['whatsapp_contacts']);
 
-        if (!$hasFcm && !$hasWa && !$hasBulk) {
+        if (!$hasFcm && !$hasWa) {
             return response()->json(['success' => false, 'message' => 'Pilih minimal satu metode notifikasi.'], 422);
         }
 
         try {
             $savedFcmToken = null;
-            $bulkAdded = 0;
-            $bulkSkipped = 0;
+            $waAdded = 0;
+            $waSkipped = 0;
+            $waDuplicates = 0;
 
             if ($hasFcm) {
                 $savedFcmToken = $this->reminderService->registerFcmToken(
                     $fcmToken,
-                    $data['device_name'] ?? null,
-                    [
-                        'opt_in' => $hasWa,
-                        'name'   => $data['whatsapp_name'] ?? null,
-                        'phone'  => $data['whatsapp_phone'] ?? null,
-                    ]
+                    $data['device_name'] ?? null
                 );
-            } elseif ($hasWa) {
-                // WhatsApp-only subscription without a real FCM token
-                $placeholder = 'whatsapp-user-' . $this->normalizePhone($data['whatsapp_phone']);
-                $savedFcmToken = $this->reminderService->registerFcmToken(
-                    $placeholder,
-                    $data['device_name'] ?? 'WhatsApp Subscriber',
-                    [
-                        'opt_in' => true,
-                        'name'   => $data['whatsapp_name'] ?? null,
-                        'phone'  => $data['whatsapp_phone'] ?? null,
-                    ]
-                );
-                // Mark inactive because it is not a real browser token
-                $savedFcmToken->update(['is_active' => false]);
             }
 
-            if ($hasBulk) {
-                $opdName = $data['bulk_opd_name'] ?: 'Perwakilan OPD';
-                foreach ($data['bulk_contacts'] as $contact) {
+            if ($hasWa) {
+                foreach ($data['whatsapp_contacts'] as $contact) {
                     $phone = $this->normalizePhone($contact['phone'] ?? '');
                     if (strlen($phone) < 10) {
-                        $bulkSkipped++;
+                        $waSkipped++;
                         continue;
                     }
 
-                    FcmToken::updateOrCreate(
-                        ['token' => 'whatsapp-opd-' . $phone],
-                        [
-                            'device_name'     => 'WhatsApp OPD - ' . $opdName,
-                            'is_active'       => false,
-                            'whatsapp_opt_in' => true,
-                            'whatsapp_name'   => !empty($contact['name']) ? $contact['name'] : $opdName,
-                            'whatsapp_phone'  => $phone,
-                        ]
-                    );
+                    // Check duplicate
+                    $existing = FcmToken::where('whatsapp_phone', $phone)->first();
+                    if ($existing) {
+                        $waDuplicates++;
+                        continue;
+                    }
 
-                    $bulkAdded++;
+                    FcmToken::create([
+                        'token'           => 'whatsapp-user-' . $phone,
+                        'device_name'     => $data['device_name'] ?? 'WhatsApp Subscriber',
+                        'is_active'       => false,
+                        'whatsapp_opt_in' => true,
+                        'whatsapp_name'   => $contact['name'] ?? null,
+                        'whatsapp_phone'  => $phone,
+                    ]);
+
+                    $waAdded++;
                 }
             }
 
             $messages = [];
             if ($savedFcmToken) {
-                $messages[] = 'langganan notifikasi agenda';
+                $messages[] = 'langganan notifikasi browser';
             }
-            if ($bulkAdded > 0) {
-                $messages[] = "{$bulkAdded} nomor perwakilan OPD";
+            if ($waAdded > 0) {
+                $messages[] = "{$waAdded} nomor WhatsApp";
+            }
+
+            $detailMsg = '';
+            if ($waSkipped > 0) {
+                $detailMsg .= " {$waSkipped} nomor tidak valid.";
+            }
+            if ($waDuplicates > 0) {
+                $detailMsg .= " {$waDuplicates} nomor sudah terdaftar.";
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Berhasil menyimpan ' . ($messages ? implode(' dan ', $messages) : 'langganan') . '.',
+                'message' => 'Berhasil menyimpan ' . ($messages ? implode(' dan ', $messages) : 'langganan') . '.' . $detailMsg,
                 'token_id' => $savedFcmToken?->id,
-                'bulk_added' => $bulkAdded,
-                'bulk_skipped' => $bulkSkipped,
+                'wa_added' => $waAdded,
+                'wa_skipped' => $waSkipped,
+                'wa_duplicates' => $waDuplicates,
             ]);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);

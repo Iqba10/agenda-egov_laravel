@@ -199,9 +199,8 @@ class AgendaReminderService
 
     /**
      * Register/update FCM token for global subscription.
-     * Optional WhatsApp opt-in details.
      */
-    public function registerFcmToken(string $token, ?string $deviceName = null, array $whatsapp = []): FcmToken
+    public function registerFcmToken(string $token, ?string $deviceName = null): FcmToken
     {
         if ($this->isPlaceholderFcmToken($token)) {
             throw new \InvalidArgumentException('Token browser tidak valid. Aktifkan ulang notifikasi sampai token Firebase berhasil dibuat.');
@@ -214,20 +213,6 @@ class AgendaReminderService
                 'is_active'   => true,
             ]
         );
-
-        if (!empty($whatsapp['opt_in']) && !empty($whatsapp['phone'])) {
-            $fcmToken->update([
-                'whatsapp_opt_in' => true,
-                'whatsapp_name'   => $whatsapp['name'] ?? null,
-                'whatsapp_phone'  => $this->normalizePhone($whatsapp['phone']),
-            ]);
-        } else {
-            $fcmToken->update([
-                'whatsapp_opt_in' => false,
-                'whatsapp_name'   => null,
-                'whatsapp_phone'  => null,
-            ]);
-        }
 
         return $fcmToken;
     }

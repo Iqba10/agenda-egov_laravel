@@ -454,7 +454,7 @@
                         </div>
                         <div>
                             <p class="text-sm font-semibold text-slate-800">WhatsApp</p>
-                            <p class="text-[10px] text-slate-500">Opsional</p>
+                            <p class="text-[10px] text-slate-500">Opsional - Satu atau banyak nomor</p>
                         </div>
                     </div>
                     <input type="checkbox" id="whatsappOptIn" onchange="toggleWhatsappInput()" class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
@@ -462,36 +462,9 @@
 
                 {{-- WhatsApp Input --}}
                 <div id="whatsappInputSection" class="hidden space-y-2 pl-2">
-                    <input id="whatsappName" type="text" placeholder="Nama Anda" autocomplete="name"
-                           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800">
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-medium">+62</span>
-                        <input id="whatsappPhone" type="tel" placeholder="812-3456-7890" autocomplete="tel"
-                               class="w-full pl-12 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800">
-                    </div>
-                </div>
-
-                {{-- Bulk WhatsApp Representative Toggle --}}
-                <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-                            <i data-lucide="users" class="h-4 w-4"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-800">Daftarkan Perwakilan OPD</p>
-                            <p class="text-[10px] text-slate-500">Banyak nomor sekaligus</p>
-                        </div>
-                    </div>
-                    <input type="checkbox" id="bulkWhatsappOptIn" onchange="toggleBulkWhatsappInput()" class="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                </label>
-
-                {{-- Bulk WhatsApp Input --}}
-                <div id="bulkWhatsappInputSection" class="hidden space-y-2 pl-2">
-                    <input id="bulkOpdName" type="text" placeholder="Nama OPD / Perwakilan" autocomplete="organization"
-                           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800">
-                    <textarea id="bulkContacts" rows="4" placeholder="Dimas, 08123456789&#10;Iqbal, 08129876543&#10;08521234567"
-                              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 font-mono resize-y max-h-40"></textarea>
-                    <p class="text-[10px] text-slate-500">Satu nomor per baris. Format opsional: <code class="bg-slate-100 px-1 rounded">Nama, 08123456789</code></p>
+                    <textarea id="whatsappContacts" rows="4" placeholder="081234567890&#10;081234567891&#10;081234567892&#10;&#10;Atau dengan nama:&#10;Dimas, 081234567890&#10;Iqbal, 081234567891"
+                              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 font-mono resize-y max-h-40"></textarea>
+                    <p class="text-[10px] text-slate-500">Maksimal 20 nomor. Satu nomor per baris. Format opsional: <code class="bg-slate-100 px-1 rounded">Nama, 08123456789</code></p>
                 </div>
             </div>
 
@@ -611,11 +584,6 @@ function toggleWhatsappInput() {
     document.getElementById('whatsappInputSection').classList.toggle('hidden', !cb.checked);
 }
 
-function toggleBulkWhatsappInput() {
-    const cb = document.getElementById('bulkWhatsappOptIn');
-    document.getElementById('bulkWhatsappInputSection').classList.toggle('hidden', !cb.checked);
-}
-
 function normalizePhone(phone) {
     let cleaned = phone.replace(/[^0-9]/g, '');
     if (cleaned.startsWith('0')) {
@@ -650,7 +618,6 @@ async function submitGlobalSubscribe() {
     const btn = document.getElementById('notifSubmit');
     const fcmOptIn = document.getElementById('fcmOptIn').checked;
     const whatsappOptIn = document.getElementById('whatsappOptIn').checked;
-    const bulkOptIn = document.getElementById('bulkWhatsappOptIn').checked;
 
     let hasAction = false;
     let payload = {};
@@ -665,27 +632,17 @@ async function submitGlobalSubscribe() {
     }
 
     if (whatsappOptIn) {
-        const name = document.getElementById('whatsappName').value.trim();
-        const phone = normalizePhone(document.getElementById('whatsappPhone').value.trim());
-        if (phone.length < 10) {
-            showFormMsg('Masukkan nomor WhatsApp yang valid.', false);
-            return;
-        }
-        payload.whatsapp_opt_in = true;
-        payload.whatsapp_name = name;
-        payload.whatsapp_phone = phone;
-        hasAction = true;
-    }
-
-    if (bulkOptIn) {
-        const raw = document.getElementById('bulkContacts').value;
+        const raw = document.getElementById('whatsappContacts').value.trim();
         const contacts = parseBulkContacts(raw);
         if (contacts.length === 0) {
-            showFormMsg('Masukkan minimal satu nomor perwakilan OPD yang valid.', false);
+            showFormMsg('Masukkan minimal satu nomor WhatsApp yang valid.', false);
             return;
         }
-        payload.bulk_contacts = contacts;
-        payload.bulk_opd_name = document.getElementById('bulkOpdName').value.trim();
+        if (contacts.length > 20) {
+            showFormMsg('Maksimal 20 nomor WhatsApp per submit.', false);
+            return;
+        }
+        payload.whatsapp_contacts = contacts;
         hasAction = true;
     }
 
